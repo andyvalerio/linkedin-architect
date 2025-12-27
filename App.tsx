@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Briefcase, 
@@ -5,7 +6,8 @@ import {
   Copy, 
   Check, 
   Linkedin, 
-  Settings2
+  Settings2,
+  ExternalLink
 } from 'lucide-react';
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
@@ -21,19 +23,17 @@ const App: React.FC = () => {
   const [postType, setPostType] = useState<PostType>(PostType.POST);
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [generatedContent, setGeneratedContent] = useState<string>('');
+  const [sources, setSources] = useState<{ title: string; uri: string }[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3-pro-preview');
 
   // Handlers
   const handleGenerate = async () => {
-    if (!braindump.trim()) {
-      alert("Please enter a Braindump to guide the content generation.");
-      return;
-    }
-
+    // Braindump is no longer mandatory as per user request
     setIsLoading(true);
     setGeneratedContent('');
+    setSources([]);
 
     const config: GenerationConfig = {
       context,
@@ -44,8 +44,9 @@ const App: React.FC = () => {
     };
 
     try {
-      const content = await generateLinkedInContent(config, documents);
-      setGeneratedContent(content);
+      const result = await generateLinkedInContent(config, documents);
+      setGeneratedContent(result.text);
+      setSources(result.sources);
     } catch (error) {
       alert("Error generating content. Please check console or try again.");
     } finally {
@@ -81,8 +82,8 @@ const App: React.FC = () => {
                 className="bg-transparent border-none focus:ring-0 text-gray-700 font-medium text-xs cursor-pointer"
                >
                  <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
-                 <option value="gemini-2.5-flash-latest">Gemini 2.5 Flash</option>
                  <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+                 <option value="gemini-flash-latest">Gemini Flash (Latest)</option>
                </select>
             </div>
           </div>
@@ -131,8 +132,8 @@ const App: React.FC = () => {
                  <h2 className="text-lg font-bold">Context</h2>
                </div>
                <TextArea 
-                 label="Post/Article to Answer" 
-                 placeholder="Paste the LinkedIn post, article, or news snippet you are reacting to here..."
+                 label="Post/Article to Answer (Paste text or URL)" 
+                 placeholder="Paste the LinkedIn post, article content, or a URL to the content you are reacting to..."
                  value={context}
                  onChange={(e) => setContext(e.target.value)}
                  className="min-h-[150px]"
@@ -162,7 +163,7 @@ const App: React.FC = () => {
                    value={braindump}
                    onChange={(e) => setBraindump(e.target.value)}
                    className="min-h-[150px] font-mono text-sm bg-gray-50"
-                   helperText="This is the most important field. Tell the AI exactly what you think."
+                   helperText="Optional. Add raw thoughts or specific instructions to guide the generation."
                  />
                </div>
             </div>
@@ -199,7 +200,7 @@ const App: React.FC = () => {
                  </Button>
                </div>
                
-               <div className="p-6 flex-1 bg-white min-h-[400px]">
+               <div className="p-6 flex-1 bg-white min-h-[400px] overflow-y-auto">
                  {generatedContent ? (
                    <div className="prose prose-sm prose-blue max-w-none whitespace-pre-wrap font-sans text-gray-800">
                      {generatedContent}
@@ -213,6 +214,29 @@ const App: React.FC = () => {
                    </div>
                  )}
                </div>
+
+               {/* Sources Section */}
+               {sources.length > 0 && (
+                 <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Sources Referenced</h4>
+                   <ul className="space-y-2">
+                     {sources.map((source, index) => (
+                       <li key={index} className="flex items-start gap-2">
+                         <ExternalLink className="w-3 h-3 mt-0.5 text-gray-400 flex-shrink-0" />
+                         <a 
+                           href={source.uri} 
+                           target="_blank" 
+                           rel="noopener noreferrer" 
+                           className="text-xs text-[#0077B5] hover:underline truncate block"
+                           title={source.title}
+                         >
+                           {source.title}
+                         </a>
+                       </li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
             </div>
           </div>
 
