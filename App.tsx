@@ -9,7 +9,11 @@ import {
   Settings2,
   ExternalLink,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  MessageSquare,
+  BookOpen,
+  Layout
 } from 'lucide-react';
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
@@ -20,7 +24,7 @@ import { generateLinkedInContent, fetchAvailableModels, ModelInfo } from './serv
 const App: React.FC = () => {
   // State
   const [context, setContext] = useState<string>('');
-  const [personality, setPersonality] = useState<string>('Professional, empathetic, yet authoritative. Use short sentences.');
+  const [personality, setPersonality] = useState<string>('Professional, empathetic, yet authoritative. Insightful and bold.');
   const [braindump, setBraindump] = useState<string>('');
   const [postType, setPostType] = useState<PostType>(PostType.POST);
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
@@ -32,10 +36,8 @@ const App: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false);
   
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
-  // FIX: Default to gemini-3-pro-preview for advanced ghostwriting tasks
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3-pro-preview');
 
-  // Load models on mount
   useEffect(() => {
     loadModels();
   }, []);
@@ -46,8 +48,10 @@ const App: React.FC = () => {
       const models = await fetchAvailableModels();
       setAvailableModels(models);
       
-      // If our current selection isn't in the list, pick the first one if available
-      if (models.length > 0 && !models.find(m => m.name === selectedModel)) {
+      const proModel = models.find(m => m.name.includes('gemini-2.5-flash'));
+      if (proModel) {
+        setSelectedModel(proModel.name);
+      } else if (models.length > 0) {
         setSelectedModel(models[0].name);
       }
     } catch (err: any) {
@@ -58,7 +62,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Handlers
   const handleGenerate = async () => {
     setIsLoading(true);
     setGeneratedContent('');
@@ -79,7 +82,7 @@ const App: React.FC = () => {
       setSources(result.sources);
     } catch (err: any) {
       console.error("App Error:", err);
-      setError(err.message || "An unexpected error occurred.");
+      setError(err.message || "An unexpected error occurred during generation.");
     } finally {
       setIsLoading(false);
     }
@@ -94,28 +97,31 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F3F2EF] text-gray-900 pb-12">
+    <div className="h-screen bg-[#F3F2EF] text-gray-900 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="bg-white border-b border-gray-200 z-50 shadow-sm flex-shrink-0">
+        <div className="max-w-[1800px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Linkedin className="w-8 h-8 text-[#0077B5]" />
+            <div className="bg-[#0077B5] p-1.5 rounded-md">
+              <Linkedin className="w-5 h-5 text-white" />
+            </div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">
               LinkedIn<span className="text-[#0077B5]">Architect</span>
             </h1>
           </div>
+          
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
-               <Settings2 className="w-3 h-3" />
+            <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+               <Settings2 className="w-3.5 h-3.5" />
                <select 
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-transparent border-none focus:ring-0 text-gray-700 font-medium text-xs cursor-pointer max-w-[220px]"
+                className="bg-transparent border-none focus:ring-0 text-gray-700 cursor-pointer"
                 disabled={isModelLoading}
                >
                  {availableModels.length > 0 ? (
                    availableModels.map(m => (
-                     <option key={m.name} value={m.name} title={m.description}>
+                     <option key={m.name} value={m.name}>
                        {m.displayName}
                      </option>
                    ))
@@ -125,189 +131,180 @@ const App: React.FC = () => {
                </select>
                <button 
                 onClick={loadModels}
-                className={`p-1 hover:bg-gray-200 rounded-full transition-colors ${isModelLoading ? 'animate-spin' : ''}`}
-                title="Refresh available models"
+                className={`p-1 hover:bg-gray-200 rounded-full transition-all ${isModelLoading ? 'animate-spin' : ''}`}
                >
-                 <RefreshCw className="w-3 h-3 text-gray-400" />
+                 <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
                </button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="flex-1 overflow-hidden">
+        <div className="max-w-[1800px] mx-auto h-full px-6 py-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
           
-          {/* LEFT COLUMN: Inputs */}
-          <div className="lg:col-span-7 space-y-6">
-            
-            {/* Post Type Selector */}
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-               <label className="text-sm font-semibold text-gray-700 mb-2 block">Content Format</label>
-               <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="postType" 
-                      checked={postType === PostType.POST} 
-                      onChange={() => setPostType(PostType.POST)}
-                      className="text-[#0077B5] focus:ring-[#0077B5]"
-                    />
-                    <span className="text-sm text-gray-700 font-medium">Post (Long)</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="postType" 
-                      checked={postType === PostType.COMMENT} 
-                      onChange={() => setPostType(PostType.COMMENT)}
-                      className="text-[#0077B5] focus:ring-[#0077B5]"
-                    />
-                    <span className="text-sm text-gray-700 font-medium">Comment (Short)</span>
-                  </label>
-               </div>
-            </div>
-
-            {/* Context */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-               <div className="flex items-center gap-2 mb-4">
-                 <div className="bg-blue-100 p-2 rounded-md">
-                   <Briefcase className="w-5 h-5 text-[#0077B5]" />
+          {/* LEFT: Deep Writing Lab */}
+          <div className="xl:col-span-8 flex flex-col h-full overflow-hidden">
+            <section className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden">
+               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
+                 <div className="flex items-center gap-2">
+                   <Layout className="w-4 h-4 text-[#0077B5]" />
+                   <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Writing Laboratory</h2>
                  </div>
-                 <h2 className="text-lg font-bold">Context</h2>
-               </div>
-               <TextArea 
-                 label="Post/Article to Answer (Paste text or URL)" 
-                 placeholder="Paste the LinkedIn post, article content, or a URL to the content you are reacting to..."
-                 value={context}
-                 onChange={(e) => setContext(e.target.value)}
-                 className="min-h-[150px]"
-               />
-            </div>
-
-            {/* Strategy Section */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-               <div className="flex items-center gap-2 mb-4">
-                 <div className="bg-purple-100 p-2 rounded-md">
-                   <Sparkles className="w-5 h-5 text-purple-600" />
-                 </div>
-                 <h2 className="text-lg font-bold">Strategy & Voice</h2>
-               </div>
-               
-               <div className="space-y-6">
-                 <TextArea 
-                   label="Personality & Tone" 
-                   placeholder="Describe how you want to sound (e.g., Cynical CTO, Encouraging Mentor, Data-Driven Analyst)..."
-                   value={personality}
-                   onChange={(e) => setPersonality(e.target.value)}
-                 />
                  
-                 <TextArea 
-                   label="Braindump (Instructions)" 
-                   placeholder="What main points do you want to hit? List your raw thoughts here..."
-                   value={braindump}
-                   onChange={(e) => setBraindump(e.target.value)}
-                   className="min-h-[150px] font-mono text-sm bg-gray-50"
-                   helperText="Optional. Add raw thoughts or specific instructions to guide the generation."
-                 />
-               </div>
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN: RAG & Output */}
-          <div className="lg:col-span-5 space-y-6 flex flex-col h-full">
-            
-            {/* Document Manager (RAG) */}
-            <DocumentManager documents={documents} setDocuments={setDocuments} />
-
-            {/* Generate Button */}
-            <Button 
-              onClick={handleGenerate} 
-              isLoading={isLoading} 
-              className="w-full py-4 text-lg shadow-md hover:shadow-lg transition-all"
-              icon={<Sparkles className="w-5 h-5" />}
-            >
-              {isLoading ? 'Crafting Content...' : 'Generate Response'}
-            </Button>
-
-            {/* Output Area */}
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 flex-1 flex flex-col relative overflow-hidden">
-               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                 <h3 className="font-semibold text-gray-700">Draft Preview</h3>
-                 <Button 
-                   variant="outline" 
-                   onClick={handleCopy} 
-                   className="text-xs py-1 h-8"
-                   disabled={!generatedContent}
-                 >
-                   {copied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
-                   {copied ? 'Copied' : 'Copy'}
-                 </Button>
-               </div>
-               
-               <div className="p-6 flex-1 bg-white min-h-[400px] overflow-y-auto">
-                 {isLoading && (
-                   <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
-                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0077B5]"></div>
-                     <p className="animate-pulse">Consulting your knowledge base...</p>
-                   </div>
-                 )}
-
-                 {error && (
-                   <div className="h-full flex flex-col items-center justify-center text-red-500 space-y-4 text-center p-4">
-                     <AlertCircle className="w-12 h-12" />
-                     <div className="space-y-2">
-                       <p className="font-bold">Generation Failed</p>
-                       <p className="text-sm bg-red-50 p-3 rounded border border-red-100 whitespace-pre-wrap">
-                         {error}
-                       </p>
+                 <div className="flex items-center gap-2 p-1 bg-gray-200 rounded-lg">
+                   <button 
+                    onClick={() => setPostType(PostType.POST)}
+                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${postType === PostType.POST ? 'bg-white text-[#0077B5] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                   >
+                     <div className="flex items-center gap-1.5">
+                       <BookOpen className="w-3.5 h-3.5" /> Post
                      </div>
-                   </div>
-                 )}
-
-                 {!isLoading && !error && generatedContent && (
-                   <div className="prose prose-sm prose-blue max-w-none whitespace-pre-wrap font-sans text-gray-800">
-                     {generatedContent}
-                   </div>
-                 )}
-
-                 {!isLoading && !error && !generatedContent && (
-                   <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                       <Sparkles className="w-8 h-8 text-gray-300" />
+                   </button>
+                   <button 
+                    onClick={() => setPostType(PostType.COMMENT)}
+                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${postType === PostType.COMMENT ? 'bg-white text-[#0077B5] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                   >
+                     <div className="flex items-center gap-1.5">
+                       <MessageSquare className="w-3.5 h-3.5" /> Comment
                      </div>
-                     <p>Ready to create content.</p>
-                   </div>
-                 )}
-               </div>
-
-               {/* Sources Section */}
-               {sources.length > 0 && (
-                 <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Sources Referenced</h4>
-                   <ul className="space-y-2">
-                     {sources.map((source, index) => (
-                       <li key={index} className="flex items-start gap-2">
-                         <ExternalLink className="w-3 h-3 mt-0.5 text-gray-400 flex-shrink-0" />
-                         <a 
-                           href={source.uri} 
-                           target="_blank" 
-                           rel="noopener noreferrer" 
-                           className="text-xs text-[#0077B5] hover:underline truncate block"
-                           title={source.title}
-                         >
-                           {source.title}
-                         </a>
-                       </li>
-                     ))}
-                   </ul>
+                   </button>
                  </div>
-               )}
-            </div>
+               </div>
+
+               <div className="p-6 flex-1 overflow-y-auto space-y-6">
+                 {/* LARGE TEXT AREA */}
+                 <div className="flex flex-col">
+                   <TextArea 
+                     label="Post/Article to Answer" 
+                     placeholder="Paste the target post content or URL here. This is the source of truth for the response..."
+                     value={context}
+                     onChange={(e) => setContext(e.target.value)}
+                     className="min-h-[250px] text-base font-medium resize-none"
+                     helperText="URLs will be analyzed using Google Search."
+                   />
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <TextArea 
+                     label="Main Points / Braindump" 
+                     placeholder="What specific insights do you want to include?"
+                     value={braindump}
+                     onChange={(e) => setBraindump(e.target.value)}
+                     className="min-h-[150px]"
+                   />
+                   <TextArea 
+                     label="Persona & Voice" 
+                     placeholder="Describe your tone (e.g., 'Authoritative expert')"
+                     value={personality}
+                     onChange={(e) => setPersonality(e.target.value)}
+                     className="min-h-[150px]"
+                   />
+                 </div>
+               </div>
+
+               <div className="p-4 bg-gray-50 border-t border-gray-100 flex-shrink-0">
+                  <Button 
+                    onClick={handleGenerate} 
+                    isLoading={isLoading} 
+                    className="w-full h-14 text-lg shadow-md bg-[#0077B5] hover:bg-[#004182] active:scale-[0.99] transition-all"
+                    icon={<Sparkles className="w-5 h-5" />}
+                  >
+                    {isLoading ? 'Processing...' : 'Generate Artifact'}
+                  </Button>
+               </div>
+            </section>
           </div>
 
+          {/* RIGHT: Documents & Preview */}
+          <div className="xl:col-span-4 flex flex-col h-full overflow-hidden gap-6">
+            <div className="flex-shrink-0">
+              <DocumentManager documents={documents} setDocuments={setDocuments} />
+            </div>
+
+            <div className="flex-1 flex flex-col bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Resulting Draft</h3>
+                </div>
+                {generatedContent && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCopy} 
+                    className="text-xs h-8 px-3"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                    {copied ? 'Copied' : 'Copy'}
+                  </Button>
+                )}
+              </div>
+
+              <div className="p-6 flex-1 overflow-y-auto relative bg-gray-50/30">
+                {isLoading && (
+                  <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-8 text-center z-10 backdrop-blur-sm animate-in fade-in">
+                    <div className="w-16 h-16 border-4 border-[#0077B5]/10 border-t-[#0077B5] rounded-full animate-spin mb-4"></div>
+                    <p className="font-bold text-gray-900">Architecting Content...</p>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                    <AlertCircle className="w-10 h-10 text-red-500 mb-2 opacity-50" />
+                    <p className="text-xs text-red-600 bg-red-50 p-4 rounded-lg border border-red-100 w-full font-mono">
+                      {error}
+                    </p>
+                    <Button variant="outline" className="mt-4" onClick={() => setError(null)}>Clear Error</Button>
+                  </div>
+                )}
+
+                {generatedContent && !isLoading && (
+                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="prose prose-blue prose-sm max-w-none text-gray-800 leading-relaxed font-sans whitespace-pre-wrap text-base">
+                      {generatedContent}
+                    </div>
+                    
+                    {sources.length > 0 && (
+                      <div className="mt-10 pt-6 border-t border-gray-200">
+                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Grounding Sources</h4>
+                        <div className="grid grid-cols-1 gap-2">
+                          {sources.map((s, i) => (
+                            <a 
+                              key={i}
+                              href={s.uri}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-100 rounded-lg text-xs font-semibold text-[#0077B5] hover:bg-blue-50 transition-all shadow-sm"
+                            >
+                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">{s.title}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!generatedContent && !isLoading && !error && (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 space-y-4 text-center">
+                    <Zap className="w-12 h-12 text-gray-200" />
+                    <p className="text-sm font-semibold text-gray-500">Awaiting inputs...</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </main>
+
+      <footer className="bg-white border-t border-gray-200 px-6 py-2 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest flex-shrink-0">
+        <div className="flex gap-4">
+          <span>Engine: {selectedModel.split('-')[1].toUpperCase()}</span>
+          <span>Status: Standby</span>
+        </div>
+        <span>LinkedIn Architect v2.1</span>
+      </footer>
     </div>
   );
 };

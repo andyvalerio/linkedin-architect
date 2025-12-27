@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
-import { Upload, FileText, X, CheckCircle2, Circle } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Upload, FileText, X, CheckCircle2, Circle, Database, Loader2 } from 'lucide-react';
 import { UploadedDocument } from '../types';
 import { fileToBase64, formatFileSize } from '../services/fileUtils';
+import { initGoogleDrive, openGooglePicker } from '../services/googleDriveService';
 
 interface DocumentManagerProps {
   documents: UploadedDocument[];
@@ -10,6 +11,11 @@ interface DocumentManagerProps {
 
 export const DocumentManager: React.FC<DocumentManagerProps> = ({ documents, setDocuments }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDriveLoading, setIsDriveLoading] = useState(false);
+
+  useEffect(() => {
+    initGoogleDrive().catch(console.error);
+  }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -19,7 +25,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({ documents, set
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      // Basic validation for demonstration. Gemini supports PDF, Text, Images etc.
       if (file.type === 'application/pdf' || file.type.startsWith('text/') || file.type.startsWith('image/')) {
         try {
           const base64 = await fileToBase64(file);
@@ -28,7 +33,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({ documents, set
             name: file.name,
             mimeType: file.type,
             data: base64,
-            isActive: true, // Default to active
+            isActive: true,
             size: file.size
           });
         } catch (error) {
@@ -40,8 +45,27 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({ documents, set
     }
 
     setDocuments(prev => [...prev, ...newDocs]);
-    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDriveImport = async () => {
+    setIsDriveLoading(true);
+    try {
+      const driveDocs = await openGooglePicker();
+      if (driveDocs.length > 0) {
+        setDocuments(prev => {
+          // Filter out duplicates based on ID or Name
+          const existingIds = new Set(prev.map(d => d.id));
+          const filteredNewDocs = driveDocs.filter(d => !existingIds.has(d.id));
+          return [...prev, ...filteredNewDocs];
+        });
+      }
+    } catch (error) {
+      console.error("Google Drive Error:", error);
+      alert("Failed to connect to Google Drive. Ensure you have configured the client ID correctly.");
+    } finally {
+      setIsDriveLoading(false);
+    }
   };
 
   const toggleDocument = (id: string) => {
@@ -59,14 +83,24 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({ documents, set
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-gray-800">Knowledge Base (RAG)</h3>
-          <p className="text-xs text-gray-500">Upload PDFs or images to ground the AI.</p>
+          <p className="text-xs text-gray-500">Attach files for context.</p>
         </div>
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          className="text-[#0077B5] text-sm hover:underline flex items-center gap-1 font-medium"
-        >
-          <Upload className="w-4 h-4" /> Add Files
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={handleDriveImport}
+            disabled={isDriveLoading}
+            className="text-gray-600 text-sm hover:text-green-600 flex items-center gap-1 font-medium disabled:opacity-50"
+          >
+            {isDriveLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+            Drive
+          </button>
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[#0077B5] text-sm hover:underline flex items-center gap-1 font-medium"
+          >
+            <Upload className="w-4 h-4" /> Local
+          </button>
+        </div>
         <input 
           type="file" 
           multiple 
@@ -77,10 +111,10 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({ documents, set
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
         {documents.length === 0 && (
           <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-md text-gray-400 text-sm">
-            No documents uploaded.
+            No knowledge base files.
           </div>
         )}
         {documents.map(doc => (
@@ -97,7 +131,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({ documents, set
               </button>
               <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
               <div className="min-w-0">
-                <p className={`text-sm font-medium truncate ${doc.isActive ? 'text-gray-900' : 'text-gray-500 line-through'}`}>
+                <p className={`text-sm font-medium truncate ${doc.isActive ? 'text-gray-900' : 'text-gray-500'}`}>
                   {doc.name}
                 </p>
                 <p className="text-xs text-gray-400">{formatFileSize(doc.size)}</p>
