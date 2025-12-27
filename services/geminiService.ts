@@ -2,27 +2,59 @@
 import { GoogleGenAI } from "@google/genai";
 import { UploadedDocument, GenerationConfig } from "../types";
 
-// The window.aistudio object is assumed to be globally available with the AIStudio type.
-// We access it via type assertion to avoid property declaration conflicts.
-
 export interface GeneratedResponse {
   text: string;
   sources: { title: string; uri: string }[];
 }
 
+export interface ModelInfo {
+  name: string;
+  displayName: string;
+  description: string;
+}
+
+/**
+ * Dynamically fetches all models available to the current API key.
+ * Iterates through the AsyncIterable returned by the SDK to avoid Pager errors.
+ */
+export const fetchAvailableModels = async (): Promise<ModelInfo[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const models: ModelInfo[] = [];
+  
+  try {
+    // Await the models.list() call as it returns a Promise<Pager<Model>> which is the async iterable.
+    const modelList = await ai.models.list();
+    
+    for await (const model of modelList) {
+      // Only include models that support content generation.
+      // Fix: Use 'supportedActions' which is the correct property name in the @google/genai SDK.
+      if (model.supportedActions?.includes('generateContent')) {
+        models.push({
+          // The API returns 'models/name', we store the full string for the API call
+          name: model.name,
+          displayName: model.displayName || model.name.replace('models/', ''),
+          description: model.description || 'No description available.'
+        });
+      }
+    }
+    
+    return models;
+  } catch (error) {
+    console.error("Error listing models:", error);
+    throw error;
+  }
+};
+
 export const generateLinkedInContent = async (
   config: GenerationConfig,
   documents: UploadedDocument[]
 ): Promise<GeneratedResponse> => {
-  // Always create a new GoogleGenAI instance right before making an API call 
-  // to ensure it uses the most up-to-date API key.
+  // Always create a new instance right before use to ensure the latest API key is used
   const createClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // Check for URL in context to decide if we need search
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const hasUrl = config.context && urlRegex.test(config.context);
 
-  // Core generation logic
   const performGeneration = async (client: GoogleGenAI) => {
     const activeDocs = documents.filter(doc => doc.isActive);
 
@@ -58,10 +90,8 @@ export const generateLinkedInContent = async (
     ---
     `;
 
-    // Prepare content parts
     const parts: any[] = [];
 
-    // Add active documents as inline data parts
     activeDocs.forEach(doc => {
       parts.push({
         inlineData: {
@@ -71,17 +101,14 @@ export const generateLinkedInContent = async (
       });
     });
 
-    // Add the text prompt
     parts.push({ text: userPromptText });
 
-    // Configure tools - Enable Google Search if a URL is detected.
-    // Google Search is only supported with specific models.
     const tools = hasUrl ? [{ googleSearch: {} }] : undefined;
 
+    // Updated contents structure to match recommended pattern { parts: [...] }
     const response = await client.models.generateContent({
       model: config.model,
       contents: {
-        role: 'user',
         parts: parts
       },
       config: {
@@ -91,10 +118,8 @@ export const generateLinkedInContent = async (
       }
     });
 
-    // Extract text directly from the text property (not a method).
     const text = response.text || "No response generated.";
 
-    // Extract grounding sources from groundingMetadata if googleSearch was used
     const sources: { title: string; uri: string }[] = [];
     const candidates = response.candidates;
     if (candidates && candidates[0]) {
@@ -118,28 +143,23 @@ export const generateLinkedInContent = async (
     const ai = createClient();
     return await performGeneration(ai);
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini API Error Detail:", error);
 
     const errorMessage = error.message || JSON.stringify(error);
     
-    // If the request fails with "Requested entity was not found.", it may mean an API key reset is needed.
     if (errorMessage.includes("Requested entity was not found") || errorMessage.includes("404")) {
       const aistudio = (window as any).aistudio;
       if (aistudio) {
-        console.log("Triggering API key selection due to 404 error...");
+        await aistudio.openSelectKey();
         try {
-          // Open the key selection dialog.
-          await aistudio.openSelectKey();
-          // Assume the key selection was successful and retry immediately with a fresh client.
           const ai = createClient();
           return await performGeneration(ai);
-        } catch (retryError) {
-          console.error("Gemini API Error (Retry after key selection):", retryError);
-          throw retryError;
+        } catch (retryError: any) {
+          throw new Error(`Retry failed after key selection: ${retryError.message}`);
         }
       }
     }
 
-    throw new Error(`Failed to generate content: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(errorMessage);
   }
 };

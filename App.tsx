@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Briefcase, 
   Sparkles, 
@@ -7,33 +7,63 @@ import {
   Check, 
   Linkedin, 
   Settings2,
-  ExternalLink
+  ExternalLink,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
 import { DocumentManager } from './components/DocumentManager';
 import { UploadedDocument, PostType, GenerationConfig } from './types';
-import { generateLinkedInContent } from './services/geminiService';
+import { generateLinkedInContent, fetchAvailableModels, ModelInfo } from './services/geminiService';
 
 const App: React.FC = () => {
   // State
   const [context, setContext] = useState<string>('');
-  const [personality, setPersonality] = useState<string>('');
+  const [personality, setPersonality] = useState<string>('Professional, empathetic, yet authoritative. Use short sentences.');
   const [braindump, setBraindump] = useState<string>('');
   const [postType, setPostType] = useState<PostType>(PostType.POST);
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [generatedContent, setGeneratedContent] = useState<string>('');
   const [sources, setSources] = useState<{ title: string; uri: string }[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  
+  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
+  // FIX: Default to gemini-3-pro-preview for advanced ghostwriting tasks
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3-pro-preview');
+
+  // Load models on mount
+  useEffect(() => {
+    loadModels();
+  }, []);
+
+  const loadModels = async () => {
+    setIsModelLoading(true);
+    try {
+      const models = await fetchAvailableModels();
+      setAvailableModels(models);
+      
+      // If our current selection isn't in the list, pick the first one if available
+      if (models.length > 0 && !models.find(m => m.name === selectedModel)) {
+        setSelectedModel(models[0].name);
+      }
+    } catch (err: any) {
+      console.error("Failed to load models:", err);
+      setError("Failed to load available models. Check your API key.");
+    } finally {
+      setIsModelLoading(false);
+    }
+  };
 
   // Handlers
   const handleGenerate = async () => {
-    // Braindump is no longer mandatory as per user request
     setIsLoading(true);
     setGeneratedContent('');
     setSources([]);
+    setError(null);
 
     const config: GenerationConfig = {
       context,
@@ -47,8 +77,9 @@ const App: React.FC = () => {
       const result = await generateLinkedInContent(config, documents);
       setGeneratedContent(result.text);
       setSources(result.sources);
-    } catch (error) {
-      alert("Error generating content. Please check console or try again.");
+    } catch (err: any) {
+      console.error("App Error:", err);
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }
@@ -79,12 +110,26 @@ const App: React.FC = () => {
                <select 
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-transparent border-none focus:ring-0 text-gray-700 font-medium text-xs cursor-pointer"
+                className="bg-transparent border-none focus:ring-0 text-gray-700 font-medium text-xs cursor-pointer max-w-[220px]"
+                disabled={isModelLoading}
                >
-                 <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
-                 <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
-                 <option value="gemini-flash-latest">Gemini Flash (Latest)</option>
+                 {availableModels.length > 0 ? (
+                   availableModels.map(m => (
+                     <option key={m.name} value={m.name} title={m.description}>
+                       {m.displayName}
+                     </option>
+                   ))
+                 ) : (
+                   <option value={selectedModel}>{selectedModel.replace('models/', '')}</option>
+                 )}
                </select>
+               <button 
+                onClick={loadModels}
+                className={`p-1 hover:bg-gray-200 rounded-full transition-colors ${isModelLoading ? 'animate-spin' : ''}`}
+                title="Refresh available models"
+               >
+                 <RefreshCw className="w-3 h-3 text-gray-400" />
+               </button>
             </div>
           </div>
         </div>
@@ -201,11 +246,32 @@ const App: React.FC = () => {
                </div>
                
                <div className="p-6 flex-1 bg-white min-h-[400px] overflow-y-auto">
-                 {generatedContent ? (
+                 {isLoading && (
+                   <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
+                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0077B5]"></div>
+                     <p className="animate-pulse">Consulting your knowledge base...</p>
+                   </div>
+                 )}
+
+                 {error && (
+                   <div className="h-full flex flex-col items-center justify-center text-red-500 space-y-4 text-center p-4">
+                     <AlertCircle className="w-12 h-12" />
+                     <div className="space-y-2">
+                       <p className="font-bold">Generation Failed</p>
+                       <p className="text-sm bg-red-50 p-3 rounded border border-red-100 whitespace-pre-wrap">
+                         {error}
+                       </p>
+                     </div>
+                   </div>
+                 )}
+
+                 {!isLoading && !error && generatedContent && (
                    <div className="prose prose-sm prose-blue max-w-none whitespace-pre-wrap font-sans text-gray-800">
                      {generatedContent}
                    </div>
-                 ) : (
+                 )}
+
+                 {!isLoading && !error && !generatedContent && (
                    <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                        <Sparkles className="w-8 h-8 text-gray-300" />
