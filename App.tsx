@@ -18,7 +18,7 @@ import { generateLinkedInContent } from './services/geminiService';
 const App: React.FC = () => {
   // State
   const [context, setContext] = useState<string>('');
-  const [personality, setPersonality] = useState<string>('Professional, empathetic, yet authoritative. Use short sentences.');
+  const [personality, setPersonality] = useState<string>('');
   const [braindump, setBraindump] = useState<string>('');
   const [postType, setPostType] = useState<PostType>(PostType.POST);
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
