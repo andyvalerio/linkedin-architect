@@ -13,7 +13,8 @@ import {
   Zap,
   MessageSquare,
   BookOpen,
-  Layout
+  Layout,
+  Trash2
 } from 'lucide-react';
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
@@ -21,22 +22,84 @@ import { DocumentManager } from './components/DocumentManager';
 import { UploadedDocument, PostType, GenerationConfig } from './types';
 import { generateLinkedInContent, fetchAvailableModels, ModelInfo } from './services/geminiService';
 
+const DEFAULT_PERSONALITY = 'Professional, empathetic, yet authoritative. Insightful and bold.';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+
+const STORAGE_KEYS = {
+  CONTEXT: 'li_arch_context',
+  PERSONALITY: 'li_arch_personality',
+  BRAINDUMP: 'li_arch_braindump',
+  POST_TYPE: 'li_arch_post_type',
+  DOCUMENTS: 'li_arch_documents',
+  SELECTED_MODEL: 'li_arch_selected_model'
+};
+
 const App: React.FC = () => {
-  // State
-  const [context, setContext] = useState<string>('');
-  const [personality, setPersonality] = useState<string>('Professional, empathetic, yet authoritative. Insightful and bold.');
-  const [braindump, setBraindump] = useState<string>('');
-  const [postType, setPostType] = useState<PostType>(PostType.POST);
-  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  // Persistence Initialization
+  const [context, setContext] = useState<string>(() => localStorage.getItem(STORAGE_KEYS.CONTEXT) || '');
+  const [personality, setPersonality] = useState<string>(() => 
+    localStorage.getItem(STORAGE_KEYS.PERSONALITY) || DEFAULT_PERSONALITY
+  );
+  const [braindump, setBraindump] = useState<string>(() => localStorage.getItem(STORAGE_KEYS.BRAINDUMP) || '');
+  const [postType, setPostType] = useState<PostType>(() => 
+    (localStorage.getItem(STORAGE_KEYS.POST_TYPE) as PostType) || PostType.POST
+  );
+  const [documents, setDocuments] = useState<UploadedDocument[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.DOCUMENTS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [selectedModel, setSelectedModel] = useState<string>(() => 
+    localStorage.getItem(STORAGE_KEYS.SELECTED_MODEL) || DEFAULT_MODEL
+  );
+
+  // Other State
   const [generatedContent, setGeneratedContent] = useState<string>('');
   const [sources, setSources] = useState<{ title: string; uri: string }[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
-  
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-3-pro-preview');
+
+  // Persistence Effects
+  useEffect(() => {
+    if (context) localStorage.setItem(STORAGE_KEYS.CONTEXT, context);
+    else localStorage.removeItem(STORAGE_KEYS.CONTEXT);
+  }, [context]);
+
+  useEffect(() => {
+    if (personality && personality !== DEFAULT_PERSONALITY) localStorage.setItem(STORAGE_KEYS.PERSONALITY, personality);
+    else localStorage.removeItem(STORAGE_KEYS.PERSONALITY);
+  }, [personality]);
+
+  useEffect(() => {
+    if (braindump) localStorage.setItem(STORAGE_KEYS.BRAINDUMP, braindump);
+    else localStorage.removeItem(STORAGE_KEYS.BRAINDUMP);
+  }, [braindump]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.POST_TYPE, postType);
+  }, [postType]);
+
+  useEffect(() => {
+    try {
+      if (documents.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.DOCUMENTS, JSON.stringify(documents));
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.DOCUMENTS);
+      }
+    } catch (e) {
+      console.warn("Local storage limit reached. Some documents may not be saved.", e);
+    }
+  }, [documents]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SELECTED_MODEL, selectedModel);
+  }, [selectedModel]);
 
   useEffect(() => {
     loadModels();
@@ -48,11 +111,15 @@ const App: React.FC = () => {
       const models = await fetchAvailableModels();
       setAvailableModels(models);
       
-      const proModel = models.find(m => m.name.includes('gemini-2.5-flash'));
-      if (proModel) {
-        setSelectedModel(proModel.name);
-      } else if (models.length > 0) {
-        setSelectedModel(models[0].name);
+      // Strict enforcement of requested default model
+      const currentSelectionInList = models.some(m => m.name === selectedModel);
+      if (!currentSelectionInList) {
+        const flashModel = models.find(m => m.name.includes(DEFAULT_MODEL));
+        if (flashModel) {
+          setSelectedModel(flashModel.name);
+        } else if (models.length > 0) {
+          setSelectedModel(models[0].name);
+        }
       }
     } catch (err: any) {
       console.error("Failed to load models:", err);
@@ -96,6 +163,24 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClearAll = () => {
+    // 1. Explicitly wipe localStorage keys first
+    Object.values(STORAGE_KEYS).forEach(key => {
+      localStorage.removeItem(key);
+    });
+
+    // 2. Clear state variables to reflect the change immediately in UI
+    setContext('');
+    setBraindump('');
+    setDocuments([]);
+    setGeneratedContent('');
+    setSources([]);
+    setPersonality(DEFAULT_PERSONALITY);
+    setSelectedModel(DEFAULT_MODEL);
+    
+    console.log("Laboratory state and storage cleared.");
+  };
+
   return (
     <div className="h-screen bg-[#F3F2EF] text-gray-900 flex flex-col overflow-hidden">
       {/* Header */}
@@ -111,6 +196,13 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-4">
+            <button 
+              onClick={handleClearAll}
+              className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-wider px-3 py-2 rounded-lg hover:bg-red-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Reset Lab
+            </button>
+
             <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
                <Settings2 className="w-3.5 h-3.5" />
                <select 
@@ -181,7 +273,7 @@ const App: React.FC = () => {
                      value={context}
                      onChange={(e) => setContext(e.target.value)}
                      className="min-h-[250px] text-base font-medium resize-none"
-                     helperText="URLs will be analyzed using Google Search."
+                     helperText="URLs will be analyzed using Google Search. Your text is auto-saved locally."
                    />
                  </div>
 
@@ -210,7 +302,7 @@ const App: React.FC = () => {
                     className="w-full h-14 text-lg shadow-md bg-[#0077B5] hover:bg-[#004182] active:scale-[0.99] transition-all"
                     icon={<Sparkles className="w-5 h-5" />}
                   >
-                    {isLoading ? 'Processing...' : 'Generate Artifact'}
+                    {isLoading ? 'Architecting Content...' : 'Generate Artifact'}
                   </Button>
                </div>
             </section>
@@ -244,7 +336,7 @@ const App: React.FC = () => {
                 {isLoading && (
                   <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-8 text-center z-10 backdrop-blur-sm animate-in fade-in">
                     <div className="w-16 h-16 border-4 border-[#0077B5]/10 border-t-[#0077B5] rounded-full animate-spin mb-4"></div>
-                    <p className="font-bold text-gray-900">Architecting Content...</p>
+                    <p className="font-bold text-gray-900">Consulting Knowledge Base...</p>
                   </div>
                 )}
 
@@ -289,7 +381,8 @@ const App: React.FC = () => {
                 {!generatedContent && !isLoading && !error && (
                   <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 space-y-4 text-center">
                     <Zap className="w-12 h-12 text-gray-200" />
-                    <p className="text-sm font-semibold text-gray-500">Awaiting inputs...</p>
+                    <p className="text-sm font-semibold text-gray-500">Awaiting laboratory inputs...</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Persistence Enabled</p>
                   </div>
                 )}
               </div>
@@ -300,10 +393,10 @@ const App: React.FC = () => {
 
       <footer className="bg-white border-t border-gray-200 px-6 py-2 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest flex-shrink-0">
         <div className="flex gap-4">
-          <span>Engine: {selectedModel.split('-')[1].toUpperCase()}</span>
+          <span>Engine: {selectedModel.split('-').pop()?.toUpperCase()}</span>
           <span>Status: Standby</span>
         </div>
-        <span>LinkedIn Architect v2.1</span>
+        <span>LinkedIn Architect v2.3 Deep Wipe</span>
       </footer>
     </div>
   );

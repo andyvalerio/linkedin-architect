@@ -1,5 +1,5 @@
 {
   "name": "LinkedIn Architect",
-  "description": "A professional AI writing assistant for LinkedIn posts and comments using Gemini 3 Pro with document-based RAG context.",
+  "description": "A professional AI writing assistant with deep persistence, document-based RAG, and automated Google Search grounding.",
   "requestFramePermissions": []
 }
