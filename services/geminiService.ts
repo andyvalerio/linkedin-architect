@@ -50,42 +50,48 @@ export const generateLinkedInContent = async (
 
   const activeDocs = documents.filter(doc => doc.isActive);
 
-  const systemInstruction = `You are a professional LinkedIn content writer and editor.
-  Your task is to produce clear, engaging, and credible LinkedIn content that maintains a professional tone while remaining readable and compelling.
+  const systemInstruction = `You are an elite LinkedIn Ghostwriter and Content Architect. 
+  Your mission is to craft viral-potential content that maintains professional integrity while being deeply engaging.
 
   KNOWLEDGE CORPUS:
-  - You have been provided with documents. These are your primary sources of inspiration.
-  - Always prioritize data, quotes, and frameworks found in the attached documents.
-  - If a document contradicts general knowledge, follow the document's perspective.
+  - You have been provided with documents. These are your primary sources of truth. 
+  - ALWAYS prioritize data, quotes, and frameworks found in the attached documents.
+  - If a document contradicts general knowledge, use the document's perspective.
 
   PERSONA & TONE:
   - Strictly adhere to: "${config.personality}".
+  - Never use "I hope this finds you well" or corporate clichés.
+  - Use high-impact hooks and "broetry" (short, punchy sentences) when appropriate for the post format.
 
   INCREMENTAL UPDATES:
-  - If a "CURRENT DRAFT" is provided, treat the request as a refinement.
-  - Improve the existing text based on the "KEY ARGUMENTS / REFINEMENT INSTRUCTIONS".
-  - Preserve the sections of the original draft that you're not explicitly instructed to change.
+  - If a "CURRENT DRAFT" is provided, treat the current request as a refinement. 
+  - Improve the existing text based on the "KEY ARGUMENTS / REFINEMENT INSTRUCTIONS" provided.
+  - Retain the best parts of the existing draft while incorporating new insights or stylistic changes requested.
 
   URL HANDLING:
-  - If a URL is provided in the context, use the Google Search tool to browse the page and absorb the content before writing.
+  - If a URL is provided in the context, use the Google Search tool to browse the page and summarize its core arguments before writing.
 
   OUTPUT FORMAT:
-  - Use spacing and short paragraphs for readability.
+  - Start with a strong "Hook".
+  - Use whitespace for readability.
+  - End with a strategic "Call to Action" (CTA).
   `;
 
   const userPromptText = `
-  TASK: ${config.currentDraft ? "Refine and update the existing" : "Write a new"} LinkedIn ${config.postType}.
+  TASK: ${config.currentDraft ? "Refine and Update the existing" : "Write a new"} LinkedIn ${config.postType}.
 
   ${config.currentDraft ? `CURRENT DRAFT TO REFINE:\n"""\n${config.currentDraft}\n"""\n` : ""}
 
   CONTEXT FOR RESPONSE:
-  ${config.context || "No specific post context provided. Produce a well-reasoned thought leadership post."}
+  ${config.context || "No specific post context provided. Generate an original thought leadership piece."}
 
   KEY ARGUMENTS / REFINEMENT INSTRUCTIONS:
-  ${config.braindump || "Identify a clear, valuable angle using the Knowledge Corpus."}
+  ${config.braindump || "Use the Knowledge Corpus to find the most interesting angle."}
 
+  STRATEGY:
+  Ensure the tone is "${config.personality}". 
+  If writing a comment, keep it under 100 words. If a post, make it insightful and detailed.
   `;
-
 
   const parts: any[] = [];
 
@@ -103,7 +109,7 @@ export const generateLinkedInContent = async (
   parts.push({ text: userPromptText });
 
   const response = await ai.models.generateContent({
-    model: config.model || 'gemini-2.5-flash',
+    model: config.model || 'gemini-3-flash-preview',
     contents: { parts: parts },
     config: {
       systemInstruction: systemInstruction,
@@ -113,7 +119,6 @@ export const generateLinkedInContent = async (
     }
   });
 
-  console.log(userPromptText)
   const text = response.text || "No response generated.";
   const sources: { title: string; uri: string }[] = [];
 
