@@ -107,23 +107,23 @@ const App: React.FC = () => {
 
   const loadModels = async () => {
     setIsModelLoading(true);
+    setError(null);
     try {
       const models = await fetchAvailableModels();
       setAvailableModels(models);
       
-      // Strict enforcement of requested default model
       const currentSelectionInList = models.some(m => m.name === selectedModel);
       if (!currentSelectionInList) {
-        const flashModel = models.find(m => m.name.includes(DEFAULT_MODEL));
-        if (flashModel) {
-          setSelectedModel(flashModel.name);
+        const preferredModel = models.find(m => m.name.includes(DEFAULT_MODEL));
+        if (preferredModel) {
+          setSelectedModel(preferredModel.name);
         } else if (models.length > 0) {
           setSelectedModel(models[0].name);
         }
       }
     } catch (err: any) {
       console.error("Failed to load models:", err);
-      setError("Failed to load available models. Check your API key.");
+      setError("Failed to load available models. Check your API key in .env.local");
     } finally {
       setIsModelLoading(false);
     }
@@ -164,12 +164,10 @@ const App: React.FC = () => {
   };
 
   const handleClearAll = () => {
-    // 1. Explicitly wipe localStorage keys first
     Object.values(STORAGE_KEYS).forEach(key => {
       localStorage.removeItem(key);
     });
 
-    // 2. Clear state variables to reflect the change immediately in UI
     setContext('');
     setBraindump('');
     setDocuments([]);
@@ -177,13 +175,10 @@ const App: React.FC = () => {
     setSources([]);
     setPersonality(DEFAULT_PERSONALITY);
     setSelectedModel(DEFAULT_MODEL);
-    
-    console.log("Laboratory state and storage cleared.");
   };
 
   return (
     <div className="h-screen bg-[#F3F2EF] text-gray-900 flex flex-col overflow-hidden">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 z-50 shadow-sm flex-shrink-0">
         <div className="max-w-[1800px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -234,8 +229,6 @@ const App: React.FC = () => {
 
       <main className="flex-1 overflow-hidden">
         <div className="max-w-[1800px] mx-auto h-full px-6 py-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
-          
-          {/* LEFT: Deep Writing Lab */}
           <div className="xl:col-span-8 flex flex-col h-full overflow-hidden">
             <section className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-full overflow-hidden">
                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
@@ -265,7 +258,6 @@ const App: React.FC = () => {
                </div>
 
                <div className="p-6 flex-1 overflow-y-auto space-y-6">
-                 {/* LARGE TEXT AREA */}
                  <div className="flex flex-col">
                    <TextArea 
                      label="Post/Article to Answer" 
@@ -308,7 +300,6 @@ const App: React.FC = () => {
             </section>
           </div>
 
-          {/* RIGHT: Documents & Preview */}
           <div className="xl:col-span-4 flex flex-col h-full overflow-hidden gap-6">
             <div className="flex-shrink-0">
               <DocumentManager documents={documents} setDocuments={setDocuments} />

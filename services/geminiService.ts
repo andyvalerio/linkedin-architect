@@ -44,7 +44,6 @@ export const generateLinkedInContent = async (
   config: GenerationConfig,
   documents: UploadedDocument[]
 ): Promise<GeneratedResponse> => {
-  // Always create a new instance right before use to ensure the latest API key is used
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -104,20 +103,19 @@ export const generateLinkedInContent = async (
   parts.push({ text: userPromptText });
 
   const response = await ai.models.generateContent({
-    model: config.model,
+    model: config.model || 'gemini-3-flash-preview',
     contents: { parts: parts },
     config: {
       systemInstruction: systemInstruction,
       temperature: 0.8,
       tools: hasUrl ? [{ googleSearch: {} }] : undefined,
-      thinkingConfig: { thinkingBudget: 0 } // Default behavior
+      thinkingConfig: { thinkingBudget: 0 }
     }
   });
 
   const text = response.text || "No response generated.";
   const sources: { title: string; uri: string }[] = [];
 
-  // Extract grounding citations if Google Search was used
   if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
     response.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
       if (chunk.web) {
