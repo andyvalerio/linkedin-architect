@@ -1,4 +1,3 @@
-
 import { test, expect } from '@playwright/test';
 
 /**
@@ -143,6 +142,46 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
     // Button should be hidden initially when no content exists
     const copyBtn = page.locator('button:has-text("Copy")');
     await expect(copyBtn).not.toBeVisible();
+  });
+
+  /**
+   * [US-GEN-05] INCREMENTAL REFINEMENT
+   * Requirement: Once a draft is generated, I want subsequent generations to refine the existing draft 
+   * based on my new instructions, rather than starting from scratch every time.
+   */
+  test('Incremental refinement UI updates', async ({ page }) => {
+    const generateBtn = page.locator('button:has-text("Generate Artifact")');
+    await page.fill('textarea[placeholder*="target post content"]', 'First Prompt Content');
+    
+    // Mocking behavior by manually setting generated content in a real scenario would involve waiting for API
+    // Here we check if the button text changes when content is present
+    await page.evaluate(() => {
+      localStorage.setItem('li_arch_generated_content', 'Existing Draft Content');
+    });
+    await page.reload();
+    
+    const updateBtn = page.locator('button:has-text("Update Artifact")');
+    await expect(updateBtn).toBeVisible();
+    
+    const newBtn = page.locator('button:has-text("New")');
+    await expect(newBtn).toBeVisible();
+  });
+
+  /**
+   * [US-UI-05] EDITABLE RESULTS
+   * Requirement: I want the resulting draft to be editable so I can make quick manual tweaks 
+   * before copying or refining it further.
+   */
+  test('Resulting draft is editable', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('li_arch_generated_content', 'Editable draft content');
+    });
+    await page.reload();
+    
+    const draftArea = page.locator('textarea[placeholder*="Your draft will appear here"]');
+    await expect(draftArea).toBeVisible();
+    await draftArea.fill('Manually modified content');
+    await expect(draftArea).toHaveValue('Manually modified content');
   });
 
 });

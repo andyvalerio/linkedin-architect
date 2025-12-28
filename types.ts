@@ -18,4 +18,5 @@ export interface GenerationConfig {
   braindump: string;
   postType: PostType;
   model: string;
+  currentDraft?: string;
 }

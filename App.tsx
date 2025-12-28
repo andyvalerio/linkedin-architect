@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Briefcase, 
@@ -14,7 +13,8 @@ import {
   MessageSquare,
   BookOpen,
   Layout,
-  Trash2
+  Trash2,
+  FilePlus2
 } from 'lucide-react';
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
@@ -31,7 +31,8 @@ const STORAGE_KEYS = {
   BRAINDUMP: 'li_arch_braindump',
   POST_TYPE: 'li_arch_post_type',
   DOCUMENTS: 'li_arch_documents',
-  SELECTED_MODEL: 'li_arch_selected_model'
+  SELECTED_MODEL: 'li_arch_selected_model',
+  GENERATED_CONTENT: 'li_arch_generated_content'
 };
 
 const App: React.FC = () => {
@@ -55,9 +56,11 @@ const App: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState<string>(() => 
     localStorage.getItem(STORAGE_KEYS.SELECTED_MODEL) || DEFAULT_MODEL
   );
+  const [generatedContent, setGeneratedContent] = useState<string>(() => 
+    localStorage.getItem(STORAGE_KEYS.GENERATED_CONTENT) || ''
+  );
 
   // Other State
-  const [generatedContent, setGeneratedContent] = useState<string>('');
   const [sources, setSources] = useState<{ title: string; uri: string }[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
@@ -102,6 +105,11 @@ const App: React.FC = () => {
   }, [selectedModel]);
 
   useEffect(() => {
+    if (generatedContent) localStorage.setItem(STORAGE_KEYS.GENERATED_CONTENT, generatedContent);
+    else localStorage.removeItem(STORAGE_KEYS.GENERATED_CONTENT);
+  }, [generatedContent]);
+
+  useEffect(() => {
     loadModels();
   }, []);
 
@@ -123,7 +131,7 @@ const App: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Failed to load models:", err);
-      setError("Failed to load available models. Check your API key in .env.local");
+      setError("Failed to load available models. Check your API key.");
     } finally {
       setIsModelLoading(false);
     }
@@ -131,8 +139,6 @@ const App: React.FC = () => {
 
   const handleGenerate = async () => {
     setIsLoading(true);
-    setGeneratedContent('');
-    setSources([]);
     setError(null);
 
     const config: GenerationConfig = {
@@ -140,7 +146,8 @@ const App: React.FC = () => {
       personality,
       braindump,
       postType,
-      model: selectedModel
+      model: selectedModel,
+      currentDraft: generatedContent || undefined
     };
 
     try {
@@ -177,6 +184,12 @@ const App: React.FC = () => {
     setSelectedModel(DEFAULT_MODEL);
   };
 
+  const handleNewDraft = () => {
+    setGeneratedContent('');
+    setSources([]);
+    localStorage.removeItem(STORAGE_KEYS.GENERATED_CONTENT);
+  };
+
   return (
     <div className="h-screen bg-[#F3F2EF] text-gray-900 flex flex-col overflow-hidden">
       <header className="bg-white border-b border-gray-200 z-50 shadow-sm flex-shrink-0">
@@ -203,7 +216,7 @@ const App: React.FC = () => {
                <select 
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-transparent border-none focus:ring-0 text-gray-700 cursor-pointer"
+                className="bg-transparent border-none focus:ring-0 text-gray-700 cursor-pointer outline-none"
                 disabled={isModelLoading}
                >
                  {availableModels.length > 0 ? (
@@ -271,8 +284,8 @@ const App: React.FC = () => {
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <TextArea 
-                     label="Main Points / Braindump" 
-                     placeholder="What specific insights do you want to include?"
+                     label="Main Points / Refinement Instructions" 
+                     placeholder="Initial points OR update instructions for the existing draft..."
                      value={braindump}
                      onChange={(e) => setBraindump(e.target.value)}
                      className="min-h-[150px]"
@@ -291,10 +304,10 @@ const App: React.FC = () => {
                   <Button 
                     onClick={handleGenerate} 
                     isLoading={isLoading} 
-                    className="w-full h-14 text-lg shadow-md bg-[#0077B5] hover:bg-[#004182] active:scale-[0.99] transition-all"
-                    icon={<Sparkles className="w-5 h-5" />}
+                    className={`w-full h-14 text-lg shadow-md active:scale-[0.99] transition-all ${generatedContent ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#0077B5] hover:bg-[#004182]'}`}
+                    icon={generatedContent ? <RefreshCw className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                   >
-                    {isLoading ? 'Architecting Content...' : 'Generate Artifact'}
+                    {isLoading ? 'Architecting Content...' : generatedContent ? 'Update Artifact' : 'Generate Artifact'}
                   </Button>
                </div>
             </section>
@@ -311,19 +324,30 @@ const App: React.FC = () => {
                   <Sparkles className="w-4 h-4 text-purple-500" />
                   <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Resulting Draft</h3>
                 </div>
-                {generatedContent && (
-                  <Button 
-                    variant="outline" 
-                    onClick={handleCopy} 
-                    className="text-xs h-8 px-3"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
-                    {copied ? 'Copied' : 'Copy'}
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {generatedContent && (
+                    <>
+                      <button 
+                        onClick={handleNewDraft}
+                        className="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-wider flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-gray-100"
+                        title="Start a fresh draft from scratch"
+                      >
+                        <FilePlus2 className="w-3 h-3" /> New
+                      </button>
+                      <Button 
+                        variant="outline" 
+                        onClick={handleCopy} 
+                        className="text-xs h-8 px-3"
+                      >
+                        {copied ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                        {copied ? 'Copied' : 'Copy'}
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
 
-              <div className="p-6 flex-1 overflow-y-auto relative bg-gray-50/30">
+              <div className="p-0 flex-1 overflow-hidden relative bg-gray-50/30 flex flex-col">
                 {isLoading && (
                   <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-8 text-center z-10 backdrop-blur-sm animate-in fade-in">
                     <div className="w-16 h-16 border-4 border-[#0077B5]/10 border-t-[#0077B5] rounded-full animate-spin mb-4"></div>
@@ -332,7 +356,7 @@ const App: React.FC = () => {
                 )}
 
                 {error && (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 z-20">
                     <AlertCircle className="w-10 h-10 text-red-500 mb-2 opacity-50" />
                     <p className="text-xs text-red-600 bg-red-50 p-4 rounded-lg border border-red-100 w-full font-mono">
                       {error}
@@ -341,15 +365,18 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                {generatedContent && !isLoading && (
-                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="prose prose-blue prose-sm max-w-none text-gray-800 leading-relaxed font-sans whitespace-pre-wrap text-base">
-                      {generatedContent}
-                    </div>
+                {generatedContent ? (
+                  <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-hidden">
+                    <textarea 
+                      className="flex-1 p-6 bg-transparent border-none focus:ring-0 text-gray-800 leading-relaxed font-sans text-base resize-none outline-none overflow-y-auto"
+                      value={generatedContent}
+                      onChange={(e) => setGeneratedContent(e.target.value)}
+                      placeholder="Your draft will appear here..."
+                    />
                     
                     {sources.length > 0 && (
-                      <div className="mt-10 pt-6 border-t border-gray-200">
-                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Grounding Sources</h4>
+                      <div className="p-6 pt-2 border-t border-gray-100 bg-white/50 overflow-y-auto max-h-[150px]">
+                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Grounding Sources</h4>
                         <div className="grid grid-cols-1 gap-2">
                           {sources.map((s, i) => (
                             <a 
@@ -367,14 +394,14 @@ const App: React.FC = () => {
                       </div>
                     )}
                   </div>
-                )}
-
-                {!generatedContent && !isLoading && !error && (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 space-y-4 text-center">
-                    <Zap className="w-12 h-12 text-gray-200" />
-                    <p className="text-sm font-semibold text-gray-500">Awaiting laboratory inputs...</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Persistence Enabled</p>
-                  </div>
+                ) : (
+                  !isLoading && !error && (
+                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 space-y-4 text-center">
+                      <Zap className="w-12 h-12 text-gray-200" />
+                      <p className="text-sm font-semibold text-gray-500">Awaiting laboratory inputs...</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Persistence Enabled</p>
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -387,7 +414,7 @@ const App: React.FC = () => {
           <span>Engine: {selectedModel.split('-').pop()?.toUpperCase()}</span>
           <span>Status: Standby</span>
         </div>
-        <span>LinkedIn Architect v2.3 Deep Wipe</span>
+        <span>LinkedIn Architect v2.5 Incremental Wipe</span>
       </footer>
     </div>
   );

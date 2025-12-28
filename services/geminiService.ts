@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { UploadedDocument, GenerationConfig } from "../types";
 
@@ -64,6 +63,11 @@ export const generateLinkedInContent = async (
   - Never use "I hope this finds you well" or corporate clichés.
   - Use high-impact hooks and "broetry" (short, punchy sentences) when appropriate for the post format.
 
+  INCREMENTAL UPDATES:
+  - If a "CURRENT DRAFT" is provided, treat the current request as a refinement. 
+  - Improve the existing text based on the "KEY ARGUMENTS / REFINEMENT INSTRUCTIONS" provided.
+  - Retain the best parts of the existing draft while incorporating new insights or stylistic changes requested.
+
   URL HANDLING:
   - If a URL is provided in the context, use the Google Search tool to browse the page and summarize its core arguments before writing.
 
@@ -74,12 +78,14 @@ export const generateLinkedInContent = async (
   `;
 
   const userPromptText = `
-  TASK: Write a LinkedIn ${config.postType}.
+  TASK: ${config.currentDraft ? "Refine and Update the existing" : "Write a new"} LinkedIn ${config.postType}.
+
+  ${config.currentDraft ? `CURRENT DRAFT TO REFINE:\n"""\n${config.currentDraft}\n"""\n` : ""}
 
   CONTEXT FOR RESPONSE:
   ${config.context || "No specific post context provided. Generate an original thought leadership piece."}
 
-  KEY ARGUMENTS / BRAINDUMP:
+  KEY ARGUMENTS / REFINEMENT INSTRUCTIONS:
   ${config.braindump || "Use the Knowledge Corpus to find the most interesting angle."}
 
   STRATEGY:
