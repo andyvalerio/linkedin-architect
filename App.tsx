@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Briefcase,
   Sparkles,
@@ -59,6 +59,15 @@ const App: React.FC = () => {
   const [generatedContent, setGeneratedContent] = useState<string>(() =>
     localStorage.getItem(STORAGE_KEYS.GENERATED_CONTENT) || ''
   );
+  const draftAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize draft textarea
+  useEffect(() => {
+    if (draftAreaRef.current) {
+      draftAreaRef.current.style.height = 'auto'; // Reset height to get correct scrollHeight
+      draftAreaRef.current.style.height = `${draftAreaRef.current.scrollHeight}px`;
+    }
+  }, [generatedContent]);
 
   // Other State
   const [sources, setSources] = useState<{ title: string; uri: string }[]>([]);
@@ -347,7 +356,7 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-0 flex-1 xl:overflow-hidden relative bg-gray-50/30 flex flex-col">
+              <div className="p-0 flex-1 xl:overflow-y-auto relative bg-gray-50/30 flex flex-col">
                 {isLoading && (
                   <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-8 text-center z-10 backdrop-blur-sm animate-in fade-in">
                     <div className="w-16 h-16 border-4 border-[#0077B5]/10 border-t-[#0077B5] rounded-full animate-spin mb-4"></div>
@@ -366,9 +375,10 @@ const App: React.FC = () => {
                 )}
 
                 {generatedContent ? (
-                  <div className="flex-1 flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300 xl:overflow-hidden">
+                  <div className="flex-shrink-0 flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <textarea
-                      className="flex-1 p-6 bg-transparent border-none focus:ring-0 text-gray-800 leading-relaxed font-sans text-base resize-none outline-none overflow-y-auto"
+                      ref={draftAreaRef}
+                      className="w-full p-6 bg-transparent border-none focus:ring-0 text-gray-800 leading-relaxed font-sans text-base resize-none outline-none overflow-hidden"
                       value={generatedContent}
                       onChange={(e) => setGeneratedContent(e.target.value)}
                       placeholder="Your draft will appear here..."
