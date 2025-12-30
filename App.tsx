@@ -101,13 +101,81 @@ const App: React.FC = () => {
   // Current API Key for the active vendor
   const currentApiKey = apiKeys[selectedVendor] || '';
 
-  // Auto-resize draft textarea
+  // Resizable Panels State
+  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(66.66); // Default 8/12
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  const startResizing = () => setIsDragging(true);
+  const stopResizing = () => setIsDragging(false);
+
   useEffect(() => {
-    if (draftAreaRef.current) {
-      draftAreaRef.current.style.height = 'auto'; // Reset height to get correct scrollHeight
-      draftAreaRef.current.style.height = `${draftAreaRef.current.scrollHeight}px`;
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !containerRef.current) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+      // Constraints
+      if (newWidth > 20 && newWidth < 80) {
+        setLeftPanelWidth(newWidth);
+      }
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', stopResizing);
+      // Change cursor globally during drag
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
     }
-  }, [generatedContent]);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isDragging]);
+
+  // Auto-resize draft textarea with Robustness
+  useEffect(() => {
+    const handleResize = () => {
+      if (draftAreaRef.current) {
+        draftAreaRef.current.style.height = 'auto'; // Reset height to get correct scrollHeight
+        draftAreaRef.current.style.height = `${Math.max(400, draftAreaRef.current.scrollHeight)}px`;
+      }
+    };
+
+    // Initial resize
+    handleResize();
+
+    // Resize on content change is handled by the dependency array
+    // plus we add a ResizeObserver to handle layout/window changes
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+
+    if (draftAreaRef.current) {
+      resizeObserver.observe(draftAreaRef.current);
+    }
+
+    // Window resize fallback
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [generatedContent, leftPanelWidth]);
 
   // Other State
   const [sources, setSources] = useState<{ title: string; uri: string }[]>([]);
@@ -283,7 +351,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen xl:h-screen bg-[#F3F2EF] text-gray-900 flex flex-col xl:overflow-hidden">
+    <div className="min-h-screen bg-[#F3F2EF] text-gray-900 flex flex-col">
       <header className="bg-white border-b border-gray-200 z-50 shadow-sm flex-shrink-0">
         <div className="max-w-[1800px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -362,39 +430,43 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 xl:overflow-hidden">
-        <div className="max-w-[1800px] mx-auto xl:h-full px-6 py-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-8 flex flex-col xl:h-full xl:overflow-hidden">
-            <section className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col xl:h-full xl:overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <Layout className="w-4 h-4 text-[#0077B5]" />
-                  <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Writing Laboratory</h2>
+      <main className="flex-1 flex flex-col">
+        <div
+          ref={containerRef}
+          className="max-w-[1800px] mx-auto w-full px-6 py-6 flex flex-col xl:flex-row gap-0 xl:gap-0"
+        >
+          <div
+            className="flex flex-col h-full gap-6"
+            style={{ width: windowWidth >= 1280 ? `${leftPanelWidth}%` : '100%' }}
+          >
+            <section className={`bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col h-full mr-0 xl:mr-3 overflow-hidden transition-all duration-500 ${!currentApiKey ? 'filter blur-[2px] opacity-40 pointer-events-none' : ''}`}>
+              <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="bg-[#0077B5]/10 p-2 rounded-xl">
+                    <Layout className="w-5 h-5 text-[#0077B5]" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-gray-900 uppercase tracking-tight">Writing Laboratory</h2>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Architect your content</p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-1 bg-gray-200 rounded-lg">
-                  <button
-                    onClick={() => setPostType(PostType.POST)}
-                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${postType === PostType.POST ? 'bg-white text-[#0077B5] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                <div className="flex items-center gap-4">
+                  <Button
+                    onClick={handleGenerate}
+                    isLoading={isLoading}
+                    disabled={!currentApiKey}
+                    className={`h-11 px-6 text-sm shadow-md active:scale-[0.99] transition-all font-bold ${!currentApiKey ? 'bg-gray-300 cursor-not-allowed text-gray-500' : generatedContent ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#0077B5] hover:bg-[#004182]'}`}
+                    icon={generatedContent ? <RefreshCw className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
                   >
-                    <div className="flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5" /> Post
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setPostType(PostType.COMMENT)}
-                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${postType === PostType.COMMENT ? 'bg-white text-[#0077B5] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5" /> Comment
-                    </div>
-                  </button>
+                    {isLoading ? 'Architecting Content...' : !currentApiKey ? 'API Key Required' : generatedContent ? 'Update Artifact' : 'Generate Artifact'}
+                  </Button>
                 </div>
               </div>
 
-              <div className="p-6 flex-1 overflow-y-auto space-y-6 relative">
+              <div className="p-6 flex-1 overflow-y-auto space-y-6 bg-gray-50/30">
                 {!currentApiKey && (
-                  <div className="absolute inset-x-6 top-6 bottom-0 bg-white/60 backdrop-blur-[1px] z-40 rounded-xl flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-amber-200 animate-in fade-in zoom-in-95 duration-300">
+                  <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-40 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-amber-200 animate-in fade-in zoom-in-95 duration-300">
                     <div className="bg-amber-100 p-4 rounded-full mb-4">
                       <Key className="w-8 h-8 text-amber-600" />
                     </div>
@@ -409,62 +481,80 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                <div className={`space-y-6 transition-all duration-500 ${!currentApiKey ? 'filter blur-[2px] opacity-40 pointer-events-none' : ''}`}>
-                  <div className="flex flex-col">
-                    <TextArea
-                      label="Post/Article to Answer"
-                      placeholder="Paste the target post content or URL here. This is the source of truth for the response..."
-                      value={context}
-                      onChange={(e) => setContext(e.target.value)}
-                      className="min-h-[250px] text-base font-medium resize-none"
-                      helperText={`URLs will be analyzed using ${selectedVendor === Vendor.GOOGLE ? 'Google Search' : 'the model'}. Your text is auto-saved locally.`}
-                    />
-                  </div>
+                <TextArea
+                  label="Post/Article to Answer"
+                  icon={<BookOpen />}
+                  headerAction={
+                    <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+                      <button
+                        onClick={() => setPostType(PostType.POST)}
+                        className={`px-3 py-1 text-[10px] font-bold rounded flex items-center gap-1.5 transition-all ${postType === PostType.POST ? 'bg-white text-[#0077B5] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        <BookOpen className="w-3 h-3" /> Post
+                      </button>
+                      <button
+                        onClick={() => setPostType(PostType.COMMENT)}
+                        className={`px-3 py-1 text-[10px] font-bold rounded flex items-center gap-1.5 transition-all ${postType === PostType.COMMENT ? 'bg-white text-[#0077B5] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        <MessageSquare className="w-3 h-3" /> Comment
+                      </button>
+                    </div>
+                  }
+                  placeholder="Paste the target post content or URL here. This is the source of truth for the response..."
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
+                  className="min-h-[250px] text-base font-medium resize-none"
+                  helperText={`URLs will be analyzed using ${selectedVendor === Vendor.GOOGLE ? 'Google Search' : 'the model'}. Your text is auto-saved locally.`}
+                />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <TextArea
-                      label="Main Points / Refinement Instructions"
-                      placeholder="Initial points OR update instructions for the existing draft..."
-                      value={braindump}
-                      onChange={(e) => setBraindump(e.target.value)}
-                      className="min-h-[150px]"
-                    />
-                    <TextArea
-                      label="Persona & Voice"
-                      placeholder="Describe your tone (e.g., 'Authoritative expert')"
-                      value={personality}
-                      onChange={(e) => setPersonality(e.target.value)}
-                      className="min-h-[150px]"
-                    />
-                  </div>
-                </div>
-              </div>
+                <TextArea
+                  label="Main Points / Refinement Instructions"
+                  icon={<Zap />}
+                  placeholder="Initial points OR update instructions for the existing draft..."
+                  value={braindump}
+                  onChange={(e) => setBraindump(e.target.value)}
+                  className="min-h-[250px] text-base font-medium resize-none"
+                />
 
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex-shrink-0">
-                <Button
-                  onClick={handleGenerate}
-                  isLoading={isLoading}
-                  disabled={!currentApiKey}
-                  className={`w-full h-14 text-lg shadow-md active:scale-[0.99] transition-all ${!currentApiKey ? 'bg-gray-300 cursor-not-allowed text-gray-500' : generatedContent ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#0077B5] hover:bg-[#004182]'}`}
-                  icon={generatedContent ? <RefreshCw className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
-                >
-                  {isLoading ? 'Architecting Content...' : !currentApiKey ? 'API Key Required' : generatedContent ? 'Update Artifact' : 'Generate Artifact'}
-                </Button>
+                <TextArea
+                  label="Persona & Voice"
+                  icon={<Settings2 />}
+                  placeholder="Describe your tone (e.g., 'Authoritative expert')"
+                  value={personality}
+                  onChange={(e) => setPersonality(e.target.value)}
+                  className="min-h-[250px] text-base font-medium resize-none"
+                />
+
+                <DocumentManager
+                  documents={documents}
+                  setDocuments={setDocuments}
+                  vendor={selectedVendor}
+                  apiKey={currentApiKey}
+                />
               </div>
             </section>
           </div>
 
-          <div className="xl:col-span-4 flex flex-col min-h-[600px] xl:min-h-0 xl:h-full xl:overflow-hidden gap-6">
-            <div className="flex-shrink-0">
-              <DocumentManager
-                documents={documents}
-                setDocuments={setDocuments}
-                vendor={selectedVendor}
-                apiKey={currentApiKey}
-              />
-            </div>
+          {/* Draggable Divider */}
+          <div
+            onMouseDown={startResizing}
+            className={`hidden xl:flex w-2 group cursor-col-resize items-center justify-center relative z-10 -mx-1 transition-all ${isDragging ? 'bg-[#0077B5]/10' : 'hover:bg-[#0077B5]/5'}`}
+          >
+            <div className={`w-[2px] h-16 rounded-full transition-all ${isDragging ? 'bg-[#0077B5] h-32' : 'bg-gray-200 group-hover:bg-[#0077B5]/40'}`} />
 
-            <div className="flex-1 flex flex-col bg-white rounded-xl shadow-md border border-gray-200 xl:overflow-hidden">
+            {/* Visual handle dots */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-1 h-1 bg-[#0077B5] rounded-full" />
+              <div className="w-1 h-1 bg-[#0077B5] rounded-full" />
+              <div className="w-1 h-1 bg-[#0077B5] rounded-full" />
+            </div>
+          </div>
+
+          <div
+            className="flex flex-col min-h-[600px] h-full gap-6 ml-0 xl:ml-3"
+            style={{ width: windowWidth >= 1280 ? `${100 - leftPanelWidth}%` : '100%' }}
+          >
+            <div className="flex-1 flex flex-col bg-white rounded-xl shadow-md border border-gray-200">
               <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-purple-500" />
@@ -493,7 +583,7 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-0 flex-1 xl:overflow-y-auto relative bg-gray-50/30 flex flex-col">
+              <div className="p-0 flex-1 relative bg-gray-50/30 flex flex-col">
                 {isLoading && (
                   <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-8 text-center z-10 backdrop-blur-sm animate-in fade-in">
                     <div className="w-16 h-16 border-4 border-[#0077B5]/10 border-t-[#0077B5] rounded-full animate-spin mb-4"></div>
