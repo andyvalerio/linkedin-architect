@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
-import { UploadedDocument, GenerationConfig, ModelInfo } from "../types";
+import { UploadedDocument, GenerationConfig, ModelInfo, KnowledgeMode, Vendor } from "../types";
 import { LLMProvider, GeneratedResponse } from "./llmProvider";
 import { getSystemInstruction, getUserPrompt } from "./promptUtils";
+import { ragService } from "./ragService";
 
 export class GoogleProvider implements LLMProvider {
     async fetchModels(apiKey: string): Promise<ModelInfo[]> {
@@ -39,21 +40,41 @@ export class GoogleProvider implements LLMProvider {
         const hasUrl = config.context && urlRegex.test(config.context);
 
         const activeDocs = documents.filter(doc => doc.isActive);
+        const ragDocs = activeDocs.filter(doc => doc.knowledgeMode === KnowledgeMode.RAG);
+        const contextDocs = activeDocs.filter(doc => doc.knowledgeMode === KnowledgeMode.CONTEXT);
 
         const systemInstruction = getSystemInstruction(config.personality);
         const userPromptText = getUserPrompt(config);
 
         const parts: any[] = [];
 
-        // Add RAG documents
-        activeDocs.forEach(doc => {
-            parts.push({
-                inlineData: {
-                    mimeType: doc.mimeType,
-                    data: doc.data
-                }
-            });
+        // Add Context documents (Full text or Multimedia)
+        contextDocs.forEach(doc => {
+            if (doc.parsedText) {
+                parts.push({ text: `--- DOCUMENT: ${doc.name} ---\n${doc.parsedText}\n` });
+            } else {
+                parts.push({
+                    inlineData: {
+                        mimeType: doc.mimeType,
+                        data: doc.data
+                    }
+                });
+            }
         });
+
+        // Add RAG chunks if needed
+        if (ragDocs.length > 0) {
+            const queryEmbeddings = await this.generateEmbeddings(apiKey, [config.braindump || config.context]);
+            const relevantChunks = await ragService.searchSimilar(queryEmbeddings[0], Vendor.GOOGLE);
+
+            if (relevantChunks.length > 0) {
+                let ragContext = "\n\nRELEVANT KNOWLEDGE CHUNKS:\n";
+                relevantChunks.forEach(chunk => {
+                    ragContext += `[From ${chunk.documentId}]: ${chunk.text}\n`;
+                });
+                parts.push({ text: ragContext });
+            }
+        }
 
         // Add prompt
         parts.push({ text: userPromptText });
@@ -84,5 +105,25 @@ export class GoogleProvider implements LLMProvider {
         }
 
         return { text, sources };
+    }
+
+    async generateEmbeddings(apiKey: string, chunks: string[]): Promise<number[][]> {
+        const ai = new GoogleGenAI({ apiKey });
+
+        try {
+            const results = await Promise.all(chunks.map(text =>
+                ai.models.embedContent({
+                    model: "text-embedding-004",
+                    contents: [{ parts: [{ text }] }]
+                })
+            ));
+            return results.map(r => {
+                const values = r.embeddings?.[0]?.values;
+                return values ? Array.from(values) : [];
+            });
+        } catch (error) {
+            console.error("Error generating Google embeddings:", error);
+            throw error;
+        }
     }
 }

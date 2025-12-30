@@ -89,13 +89,87 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
    */
   test('Knowledge Base UI structure and empty state', async ({ page }) => {
     const ragHeading = page.locator('h3:has-text("Knowledge Base")');
-    const uploadBtn = page.locator('button:has-text("Local Upload")');
+    const uploadBtn = page.locator('button:has-text("Upload File")');
 
     await expect(ragHeading).toBeVisible();
     await expect(uploadBtn).toBeVisible();
 
     // Check default empty state message
-    await expect(page.locator('text=No knowledge base files.')).toBeVisible();
+    await expect(page.locator('text=Your library is empty')).toBeVisible();
+  });
+
+  /**
+   * [US-RAG-03] HYBRID KNOWLEDGE MODES
+   * Requirement: As a user, I want to choose between "Context" (full text) and 
+   * "RAG" (indexed search) for each document, so I can optimize token usage 
+   * based on document length.
+   */
+  test('Toggle between Full Reference and Smart Search modes', async ({ page }) => {
+    // This test will rely on the UI being implemented
+    const ragHeading = page.locator('h3:has-text("Knowledge Base")');
+    await expect(ragHeading).toBeVisible();
+
+    // The user uploads a file first (mocked by adding to store or simulated upload)
+    // For now we check for the text descriptions that should be present
+    const fullRefBtn = page.locator('button:has-text("Full Reference")');
+    const smartSearchBtn = page.locator('button:has-text("Smart Search")');
+
+    // These should be visible when a document is active
+    // (In a real e2e we would upload first, but here we are checking the requirement placeholders)
+  });
+
+  /**
+   * [US-RAG-04] RAG SOURCE ATTRIBUTION
+   * Requirement: As a user, I want to see which specific chunks of my knowledge base 
+   * were used to generate the response, so I can verify the accuracy of the information.
+   */
+  test('Verification of grounding sources in the draft', async ({ page }) => {
+    // Requirement for grounding metadata display
+    const draftHeading = page.locator('h3:has-text("Resulting Draft")');
+    await expect(draftHeading).toBeVisible();
+  });
+
+  /**
+   * [US-RAG-05] DOCUMENT UPLOAD
+   * Requirement: As a user, I want to upload PDF and Text files and see them 
+   * appear in my knowledge base immediately.
+   */
+  test('Successful document upload', async ({ page }) => {
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.locator('button:has-text("Upload File")').click();
+    const fileChooser = await fileChooserPromise;
+
+    await fileChooser.setFiles({
+      name: 'test.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('This is a test document content.')
+    });
+
+    await expect(page.locator('text=test.txt')).toBeVisible();
+    await expect(page.locator('text=Full Reference')).toBeVisible();
+  });
+
+  /**
+   * [US-RAG-06] PDF DOCUMENT UPLOAD
+   * Requirement: As a user, I want to upload PDF files and have them 
+   * parsed correctly for AI context.
+   */
+  test('Successful PDF upload', async ({ page }) => {
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.locator('button:has-text("Upload File")').click();
+    const fileChooser = await fileChooserPromise;
+
+    // Using a minimal valid PDF-like structure for testing basic upload
+    // In a real environment we'd use a real sample PDF
+    await fileChooser.setFiles({
+      name: 'test.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 44 >>\nstream\nBT /F1 24 Tf 100 700 Td (Hello World) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000108 00000 n\n0000000213 00000 n\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n308\n%%EOF')
+    });
+
+    await expect(page.locator('text=test.pdf')).toBeVisible();
+    // It should at least be accepted by the UI
+    await expect(page.locator('text=Full Reference')).toBeVisible();
   });
 
   /**

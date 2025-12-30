@@ -21,7 +21,7 @@ import {
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
 import { DocumentManager } from './components/DocumentManager';
-import { UploadedDocument, PostType, GenerationConfig, Vendor, ModelInfo } from './types';
+import { UploadedDocument, PostType, GenerationConfig, Vendor, ModelInfo, KnowledgeMode } from './types';
 import { getProvider, getAvailableVendors } from './services/llmFactory';
 
 const DEFAULT_PERSONALITY = 'Professional, empathetic, yet authoritative. Insightful and bold.';
@@ -56,12 +56,18 @@ const App: React.FC = () => {
   const [documents, setDocuments] = useState<UploadedDocument[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.DOCUMENTS);
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved) as UploadedDocument[];
+      // Migration for old documents
+      return parsed.map(doc => ({
+        ...doc,
+        knowledgeMode: doc.knowledgeMode || KnowledgeMode.CONTEXT,
+        isIndexed: doc.isIndexed || false
+      }));
     } catch {
       return [];
     }
   });
-
   const [selectedVendor, setSelectedVendor] = useState<Vendor>(() =>
     (localStorage.getItem(STORAGE_KEYS.SELECTED_VENDOR) as Vendor) || DEFAULT_VENDOR
   );
@@ -450,7 +456,12 @@ const App: React.FC = () => {
 
           <div className="xl:col-span-4 flex flex-col min-h-[600px] xl:min-h-0 xl:h-full xl:overflow-hidden gap-6">
             <div className="flex-shrink-0">
-              <DocumentManager documents={documents} setDocuments={setDocuments} />
+              <DocumentManager
+                documents={documents}
+                setDocuments={setDocuments}
+                vendor={selectedVendor}
+                apiKey={currentApiKey}
+              />
             </div>
 
             <div className="flex-1 flex flex-col bg-white rounded-xl shadow-md border border-gray-200 xl:overflow-hidden">

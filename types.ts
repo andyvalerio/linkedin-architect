@@ -9,13 +9,28 @@ export interface ModelInfo {
   description: string;
 }
 
+export enum KnowledgeMode {
+  CONTEXT = 'context',
+  RAG = 'rag'
+}
+
+export interface Chunk {
+  id: string;
+  documentId: string;
+  text: string;
+  metadata?: any;
+}
+
 export interface UploadedDocument {
   id: string;
   name: string;
   mimeType: string;
-  data: string; // Base64 string
+  data: string; // Base64 string (optional now, but kept for compatibility)
+  parsedText?: string;
   isActive: boolean;
   size: number;
+  knowledgeMode: KnowledgeMode;
+  isIndexed?: boolean;
 }
 
 export enum PostType {

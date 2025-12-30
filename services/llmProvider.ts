@@ -12,4 +12,5 @@ export interface LLMProvider {
         config: GenerationConfig,
         documents: UploadedDocument[]
     ): Promise<GeneratedResponse>;
+    generateEmbeddings(apiKey: string, chunks: string[]): Promise<number[][]>;
 }
