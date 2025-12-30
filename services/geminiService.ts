@@ -15,13 +15,13 @@ export interface ModelInfo {
 /**
  * Dynamically fetches all models available to the current API key.
  */
-export const fetchAvailableModels = async (): Promise<ModelInfo[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const fetchAvailableModels = async (apiKey: string): Promise<ModelInfo[]> => {
+  const ai = new GoogleGenAI({ apiKey });
   const models: ModelInfo[] = [];
-  
+
   try {
     const modelList = await ai.models.list();
-    
+
     for await (const model of modelList) {
       if (model.supportedActions?.includes('generateContent')) {
         models.push({
@@ -31,7 +31,7 @@ export const fetchAvailableModels = async (): Promise<ModelInfo[]> => {
         });
       }
     }
-    
+
     return models;
   } catch (error) {
     console.error("Error listing models:", error);
@@ -40,10 +40,11 @@ export const fetchAvailableModels = async (): Promise<ModelInfo[]> => {
 };
 
 export const generateLinkedInContent = async (
+  apiKey: string,
   config: GenerationConfig,
   documents: UploadedDocument[]
 ): Promise<GeneratedResponse> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
 
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const hasUrl = config.context && urlRegex.test(config.context);

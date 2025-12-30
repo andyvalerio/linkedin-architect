@@ -14,7 +14,8 @@ import {
   BookOpen,
   Layout,
   Trash2,
-  FilePlus2
+  FilePlus2,
+  Key
 } from 'lucide-react';
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
@@ -32,7 +33,8 @@ const STORAGE_KEYS = {
   POST_TYPE: 'li_arch_post_type',
   DOCUMENTS: 'li_arch_documents',
   SELECTED_MODEL: 'li_arch_selected_model',
-  GENERATED_CONTENT: 'li_arch_generated_content'
+  GENERATED_CONTENT: 'li_arch_generated_content',
+  API_KEY: 'li_arch_api_key'
 };
 
 const App: React.FC = () => {
@@ -59,6 +61,7 @@ const App: React.FC = () => {
   const [generatedContent, setGeneratedContent] = useState<string>(() =>
     localStorage.getItem(STORAGE_KEYS.GENERATED_CONTENT) || ''
   );
+  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem(STORAGE_KEYS.API_KEY) || '');
   const draftAreaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize draft textarea
@@ -119,14 +122,25 @@ const App: React.FC = () => {
   }, [generatedContent]);
 
   useEffect(() => {
-    loadModels();
-  }, []);
+    if (apiKey) localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
+    else localStorage.removeItem(STORAGE_KEYS.API_KEY);
+  }, [apiKey]);
+
+  useEffect(() => {
+    if (apiKey) {
+      loadModels();
+    }
+  }, [apiKey]);
 
   const loadModels = async () => {
+    if (!apiKey) {
+      setAvailableModels([]);
+      return;
+    }
     setIsModelLoading(true);
     setError(null);
     try {
-      const models = await fetchAvailableModels();
+      const models = await fetchAvailableModels(apiKey);
       setAvailableModels(models);
 
       const currentSelectionInList = models.some(m => m.name === selectedModel);
@@ -147,6 +161,10 @@ const App: React.FC = () => {
   };
 
   const handleGenerate = async () => {
+    if (!apiKey) {
+      setError("Please provide a Gemini API Key in the top right settings.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -160,7 +178,7 @@ const App: React.FC = () => {
     };
 
     try {
-      const result = await generateLinkedInContent(config, documents);
+      const result = await generateLinkedInContent(apiKey, config, documents);
       setGeneratedContent(result.text);
       setSources(result.sources);
     } catch (err: any) {
@@ -221,14 +239,27 @@ const App: React.FC = () => {
             </button>
 
             <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+              <Key className="w-3.5 h-3.5 text-gray-400" />
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Gemini API Key..."
+                className="bg-transparent border-none focus:ring-0 text-gray-700 outline-none w-32"
+              />
+            </div>
+
+            <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
               <Settings2 className="w-3.5 h-3.5" />
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="bg-transparent border-none focus:ring-0 text-gray-700 cursor-pointer outline-none"
-                disabled={isModelLoading}
+                disabled={isModelLoading || !apiKey}
               >
-                {availableModels.length > 0 ? (
+                {!apiKey ? (
+                  <option>Set API Key first...</option>
+                ) : availableModels.length > 0 ? (
                   availableModels.map(m => (
                     <option key={m.name} value={m.name}>
                       {m.displayName}
@@ -240,7 +271,8 @@ const App: React.FC = () => {
               </select>
               <button
                 onClick={loadModels}
-                className={`p-1 hover:bg-gray-200 rounded-full transition-all ${isModelLoading ? 'animate-spin' : ''}`}
+                disabled={!apiKey}
+                className={`p-1 hover:bg-gray-200 rounded-full transition-all ${isModelLoading ? 'animate-spin' : ''} ${!apiKey ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
               </button>

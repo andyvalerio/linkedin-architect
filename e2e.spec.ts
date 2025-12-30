@@ -11,6 +11,9 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    // Set a dummy API key for tests that require it
+    const apiKeyInput = page.locator('input[placeholder*="Gemini API Key"]');
+    await apiKeyInput.fill('dummy-test-key');
   });
 
   /**
@@ -207,6 +210,28 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
     // Check that it doesn't have a scrollbar
     const hasScrollbar = await draftArea.evaluate((el: HTMLTextAreaElement) => el.scrollHeight > el.clientHeight);
     expect(hasScrollbar).toBe(false);
+  });
+
+  /**
+   * [US-SEC-01] CLIENT-SIDE API KEY
+   * Requirement: As a user, I want to input my Gemini API key in the UI and have it 
+   * stored only in my browser's local storage, so that my credentials remain private 
+   * and are never sent to the backend.
+   */
+  test('API Key input and persistence', async ({ page }) => {
+    const apiKeyInput = page.locator('input[placeholder*="Gemini API Key"]');
+    await expect(apiKeyInput).toBeVisible();
+
+    const testKey = 'test-api-key-123';
+    await apiKeyInput.fill(testKey);
+
+    // Reload to verify persistence
+    await page.reload();
+    await expect(apiKeyInput).toHaveValue(testKey);
+
+    // Verify it's in LocalStorage
+    const storedKey = await page.evaluate(() => localStorage.getItem('li_arch_api_key'));
+    expect(storedKey).toBe(testKey);
   });
 
 });
