@@ -1,20 +1,110 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img width="1200" height="475" alt="LinkedIn Architect Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# 🟦 LinkedIn Architect
 
-This contains everything you need to run your app locally.
+> **Master the Art of LinkedIn Content with AI-Assisted Precision.**
 
-View your app in AI Studio: https://ai.studio/apps/drive/1Xot99l0j-K2fpYSSSv6m-tJoceLYlB-0
+LinkedIn Architect is a professional-grade content generation laboratory designed to help creators, executives, and architects craft high-impact LinkedIn posts and comments. By combining Multi-Vendor LLM support (Google & OpenAI) with an advanced Knowledge Base (RAG), it allows you to ground your content in real documents while maintaining your unique voice.
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## ✨ Key Features
 
+-   **🤖 Multi-Vendor Intelligence**: Seamlessly switch between **Gemini** and **OpenAI GPT** models.
+-   **📚 Advanced Knowledge Base (RAG)**: 
+    *   Upload PDF and Text documents to ground your generations.
+    *   **Smart Search (RAG)**: Indexed search for large documents.
+    *   **Full Reference**: Use the entire document context for maximum precision.
+-   **✍️ Content Specialization**: Optimized strategies for both **Posts** and **Comments**.
+-   **🗣️ Persona & Voice Modeling**: Define your unique tone to ensure every post sounds like *you*.
+-   **🔄 Incremental Refinement**: Don't like a draft? Provide instructions to update and refine it rather than starting from scratch.
+-   **💾 Zero-Loss Persistence**: All inputs, configurations, and drafts are automatically saved to your browser's LocalStorage.
+-   **🔒 Privacy-First Architecture**: Your API keys are stored **only** in your browser's local storage and are never sent to any backend.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+
+## 🛠️ Technology Stack
+
+-   **Frontend**: [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+-   **Build Tool**: [Vite](https://vitejs.dev/)
+-   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+-   **Icons**: [Lucide React](https://lucide.dev/)
+-   **AI Integration**: 
+    *   [@google/genai](https://www.npmjs.com/package/@google/genai)
+    *   [openai](https://www.npmjs.com/package/openai)
+-   **Document Processing**: [pdfjs-dist](https://www.npmjs.com/package/pdfjs-dist)
+-   **Testing**: [Playwright](https://playwright.dev/) (E2E Requirements Validation)
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+-   [Node.js](https://nodejs.org/) (Latest LTS recommended)
+-   An API Key from [Google AI Studio](https://aistudio.google.com/) or [OpenAI Platform](https://platform.openai.com/)
+
+### Installation
+
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/andyvalerio/linkedin-architect.git
+    cd linkedin-architect
+    ```
+
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+
+3.  **Run the development server**:
+    ```bash
+    npm run dev
+    ```
+
+4.  **Open the App**:
+    Navigate to `http://localhost:5173` (or the port shown in your terminal).
+
+5.  **Configure API Key**:
+    Click the **Key icon** in the header to enter your Google or OpenAI API key.
+
+---
+
+## 🧪 Requirements & Testing
+
+This project follows a "Test-as-Specification" approach. The `e2e.spec.ts` file contains the full suite of user stories and requirements validation.
+
+To run the automated test suite:
+
+```bash
+# Run all tests
+npm test
+
+# Open Playwright UI for interactive testing
+npm run test:ui
+```
+
+### Core User Stories
+- **[US-UI-01] Persistence**: Inputs persist across refreshes via LocalStorage.
+- **[US-RAG-03] Hybrid Knowledge**: Switch between Full Context and Smart Search modes.
+- **[US-CFG-03] Vendor Persistence**: API keys and model selections are stored per vendor.
+- **[US-GEN-04] Visual Feedback**: Clear loading states during AI reasoning and grounding.
+
+---
+
+## 📁 Project Structure
+
+-   `/components`: Reusable UI components (Buttons, TextAreas, Document Manager).
+-   `/services`: Provider-agnostic LLM logic and RAG implementation.
+-   `/types.ts`: Shared TypeScript interfaces and enums.
+-   `App.tsx`: Main application logic and state management.
+-   `e2e.spec.ts`: Integrated requirements and Playwright tests.
+
+---
+
+<div align="center">
+  <p><i>Crafted for the next generation of LinkedIn Architects.</i></p>
+  <b>LinkedIn Architect v3.0</b>
+</div>
