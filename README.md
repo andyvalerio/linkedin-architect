@@ -4,6 +4,8 @@
 
 LinkedIn Architect is a professional-grade content generation laboratory designed to help creators, executives, and architects craft high-impact LinkedIn posts and comments. By combining Multi-Vendor LLM support (Google & OpenAI) with an advanced Knowledge Base (RAG), it allows you to ground your content in real documents while maintaining your unique voice.
 
+### 🚀 [Live Demo: andyvalerio.github.io/linkedin-architect](https://andyvalerio.github.io/linkedin-architect/)
+
 ---
 
 ## ✨ Key Features
