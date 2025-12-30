@@ -2,9 +2,9 @@
 
 > **Master the Art of LinkedIn Content with AI-Assisted Precision.**
 
-LinkedIn Architect is a professional-grade content generation laboratory designed to help creators, executives, and architects craft high-impact LinkedIn posts and comments. By combining Multi-Vendor LLM support (Google & OpenAI) with an advanced Knowledge Base (RAG), it allows you to ground your content in real documents while maintaining your unique voice.
+LinkedIn Architect is a content generation laboratory designed to help creators, executives, and architects craft high-impact LinkedIn posts and comments. By combining Multi-Vendor LLM support (Google & OpenAI) with an advanced Knowledge Base (RAG), it allows you to ground your content in real documents while maintaining your unique voice.
 
-### 🚀 [Live Demo: andyvalerio.github.io/linkedin-architect](https://andyvalerio.github.io/linkedin-architect/)
+### 🚀 [Live: andyvalerio.github.io/linkedin-architect](https://andyvalerio.github.io/linkedin-architect/)
 
 ---
 
@@ -99,6 +99,12 @@ npm run test:ui
 -   `/types.ts`: Shared TypeScript interfaces and enums.
 -   `App.tsx`: Main application logic and state management.
 -   `e2e.spec.ts`: Integrated requirements and Playwright tests.
+
+---
+
+## 📄 License
+
+This project is licensed under the **GNU GPLv3 License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
