@@ -15,16 +15,21 @@ import {
   Layout,
   Trash2,
   FilePlus2,
-  Key
+  Key,
+  Server
 } from 'lucide-react';
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
 import { DocumentManager } from './components/DocumentManager';
-import { UploadedDocument, PostType, GenerationConfig } from './types';
-import { generateLinkedInContent, fetchAvailableModels, ModelInfo } from './services/geminiService';
+import { UploadedDocument, PostType, GenerationConfig, Vendor, ModelInfo } from './types';
+import { getProvider, getAvailableVendors } from './services/llmFactory';
 
 const DEFAULT_PERSONALITY = 'Professional, empathetic, yet authoritative. Insightful and bold.';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_VENDOR = Vendor.GOOGLE;
+const DEFAULT_MODELS: Record<Vendor, string> = {
+  [Vendor.GOOGLE]: 'gemini-2.5-flash',
+  [Vendor.OPENAI]: 'gpt-4o'
+};
 
 const STORAGE_KEYS = {
   CONTEXT: 'li_arch_context',
@@ -32,9 +37,10 @@ const STORAGE_KEYS = {
   BRAINDUMP: 'li_arch_braindump',
   POST_TYPE: 'li_arch_post_type',
   DOCUMENTS: 'li_arch_documents',
-  SELECTED_MODEL: 'li_arch_selected_model',
+  SELECTED_VENDOR: 'li_arch_selected_vendor',
+  SELECTED_MODEL: 'li_arch_selected_model_v2', // Changed key to reset if needed
   GENERATED_CONTENT: 'li_arch_generated_content',
-  API_KEY: 'li_arch_api_key'
+  API_KEYS: 'li_arch_api_keys_v2' // Map of vendor -> key
 };
 
 const App: React.FC = () => {
@@ -55,14 +61,39 @@ const App: React.FC = () => {
       return [];
     }
   });
-  const [selectedModel, setSelectedModel] = useState<string>(() =>
-    localStorage.getItem(STORAGE_KEYS.SELECTED_MODEL) || DEFAULT_MODEL
+
+  const [selectedVendor, setSelectedVendor] = useState<Vendor>(() =>
+    (localStorage.getItem(STORAGE_KEYS.SELECTED_VENDOR) as Vendor) || DEFAULT_VENDOR
   );
+
+  const [apiKeys, setApiKeys] = useState<Record<Vendor, string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.API_KEYS);
+      const parsed = saved ? JSON.parse(saved) : {};
+
+      // Migration from old single key if exists
+      const oldKey = localStorage.getItem('li_arch_api_key');
+      if (oldKey && !parsed[Vendor.GOOGLE]) {
+        parsed[Vendor.GOOGLE] = oldKey;
+      }
+      return parsed;
+    } catch {
+      return {} as Record<Vendor, string>;
+    }
+  });
+
+  const [selectedModel, setSelectedModel] = useState<string>(() =>
+    localStorage.getItem(`${STORAGE_KEYS.SELECTED_MODEL}_${selectedVendor}`) || DEFAULT_MODELS[selectedVendor]
+  );
+
   const [generatedContent, setGeneratedContent] = useState<string>(() =>
     localStorage.getItem(STORAGE_KEYS.GENERATED_CONTENT) || ''
   );
-  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem(STORAGE_KEYS.API_KEY) || '');
+
   const draftAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Current API Key for the active vendor
+  const currentApiKey = apiKeys[selectedVendor] || '';
 
   // Auto-resize draft textarea
   useEffect(() => {
@@ -113,8 +144,15 @@ const App: React.FC = () => {
   }, [documents]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SELECTED_MODEL, selectedModel);
-  }, [selectedModel]);
+    localStorage.setItem(STORAGE_KEYS.SELECTED_VENDOR, selectedVendor);
+    // When vendor changes, update model selection to the one saved for that vendor
+    const savedModel = localStorage.getItem(`${STORAGE_KEYS.SELECTED_MODEL}_${selectedVendor}`);
+    setSelectedModel(savedModel || DEFAULT_MODELS[selectedVendor]);
+  }, [selectedVendor]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEYS.SELECTED_MODEL}_${selectedVendor}`, selectedModel);
+  }, [selectedModel, selectedVendor]);
 
   useEffect(() => {
     if (generatedContent) localStorage.setItem(STORAGE_KEYS.GENERATED_CONTENT, generatedContent);
@@ -122,47 +160,61 @@ const App: React.FC = () => {
   }, [generatedContent]);
 
   useEffect(() => {
-    if (apiKey) localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
-    else localStorage.removeItem(STORAGE_KEYS.API_KEY);
-  }, [apiKey]);
+    localStorage.setItem(STORAGE_KEYS.API_KEYS, JSON.stringify(apiKeys));
+  }, [apiKeys]);
 
   useEffect(() => {
-    if (apiKey) {
+    if (currentApiKey) {
+      setAvailableModels([]); // Clear immediate stale models
       loadModels();
+    } else {
+      setAvailableModels([]);
     }
-  }, [apiKey]);
+  }, [selectedVendor, currentApiKey]);
 
   const loadModels = async () => {
-    if (!apiKey) {
-      setAvailableModels([]);
-      return;
-    }
+    if (!currentApiKey) return;
+
     setIsModelLoading(true);
     setError(null);
     try {
-      const models = await fetchAvailableModels(apiKey);
+      const provider = getProvider(selectedVendor);
+      const models = await provider.fetchModels(currentApiKey);
       setAvailableModels(models);
 
-      const currentSelectionInList = models.some(m => m.name === selectedModel);
+      // Get the MOST CURRENT selected model for this vendor from state or localStorage
+      const savedModel = localStorage.getItem(`${STORAGE_KEYS.SELECTED_MODEL}_${selectedVendor}`);
+      const modelToVerify = savedModel || selectedModel;
+
+      const currentSelectionInList = models.some(m => m.name === modelToVerify);
       if (!currentSelectionInList) {
-        const preferredModel = models.find(m => m.name.includes(DEFAULT_MODEL));
+        const preferredModel = models.find(m => m.name.includes(DEFAULT_MODELS[selectedVendor].replace('models/', '')));
         if (preferredModel) {
           setSelectedModel(preferredModel.name);
         } else if (models.length > 0) {
           setSelectedModel(models[0].name);
         }
+      } else if (selectedModel !== modelToVerify) {
+        setSelectedModel(modelToVerify);
       }
     } catch (err: any) {
       console.error("Failed to load models:", err);
-      setError("Failed to load available models. Check your API key.");
+      setError(`Failed to load ${selectedVendor} models. Check your API key.`);
     } finally {
       setIsModelLoading(false);
     }
   };
 
+  const handleApiKeyChange = (val: string) => {
+    setApiKeys(prev => ({
+      ...prev,
+      [selectedVendor]: val
+    }));
+  };
+
   const handleGenerate = async () => {
-    if (!apiKey) {
-      setError("Please provide a Gemini API Key in the top right settings.");
+    if (!currentApiKey) {
+      setError(`Please provide an API Key for ${selectedVendor.toUpperCase()} in the top right settings.`);
       return;
     }
     setIsLoading(true);
@@ -178,7 +230,8 @@ const App: React.FC = () => {
     };
 
     try {
-      const result = await generateLinkedInContent(apiKey, config, documents);
+      const provider = getProvider(selectedVendor);
+      const result = await provider.generateContent(currentApiKey, config, documents);
       setGeneratedContent(result.text);
       setSources(result.sources);
     } catch (err: any) {
@@ -201,6 +254,10 @@ const App: React.FC = () => {
     Object.values(STORAGE_KEYS).forEach(key => {
       localStorage.removeItem(key);
     });
+    // Also remove vendor-specific model selections
+    getAvailableVendors().forEach(v => {
+      localStorage.removeItem(`${STORAGE_KEYS.SELECTED_MODEL}_${v.id}`);
+    });
 
     setContext('');
     setBraindump('');
@@ -208,7 +265,9 @@ const App: React.FC = () => {
     setGeneratedContent('');
     setSources([]);
     setPersonality(DEFAULT_PERSONALITY);
-    setSelectedModel(DEFAULT_MODEL);
+    setSelectedVendor(DEFAULT_VENDOR);
+    setApiKeys({} as Record<Vendor, string>);
+    setSelectedModel(DEFAULT_MODELS[DEFAULT_VENDOR]);
   };
 
   const handleNewDraft = () => {
@@ -230,7 +289,7 @@ const App: React.FC = () => {
             </h1>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={handleClearAll}
               className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-wider px-3 py-2 rounded-lg hover:bg-red-50"
@@ -238,27 +297,42 @@ const App: React.FC = () => {
               <Trash2 className="w-3.5 h-3.5" /> Reset Lab
             </button>
 
-            <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border transition-all ${!apiKey ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-500 animate-pulse' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-              <Key className={`w-3.5 h-3.5 ${!apiKey ? 'text-amber-600' : 'text-gray-400'}`} />
+            <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+              <Server className="w-3.5 h-3.5" />
+              <select
+                id="vendor-select"
+                value={selectedVendor}
+                onChange={(e) => setSelectedVendor(e.target.value as Vendor)}
+                className="bg-transparent border-none focus:ring-0 text-gray-700 cursor-pointer outline-none font-bold"
+              >
+                {getAvailableVendors().map(v => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border transition-all ${!currentApiKey ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-500 animate-pulse' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+              <Key className={`w-3.5 h-3.5 ${!currentApiKey ? 'text-amber-600' : 'text-gray-400'}`} />
               <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Gemini API Key..."
-                className="bg-transparent border-none focus:ring-0 text-gray-700 outline-none w-32"
                 id="api-key-input"
+                type="password"
+                value={currentApiKey}
+                onChange={(e) => handleApiKeyChange(e.target.value)}
+                placeholder={`${selectedVendor.toUpperCase()} API Key...`}
+                className="bg-transparent border-none focus:ring-0 text-gray-700 outline-none w-32"
               />
             </div>
 
             <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
               <Settings2 className="w-3.5 h-3.5" />
               <select
+                id="model-select"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-transparent border-none focus:ring-0 text-gray-700 cursor-pointer outline-none"
-                disabled={isModelLoading || !apiKey}
+                className="bg-transparent border-none focus:ring-0 text-gray-700 cursor-pointer outline-none max-w-[150px]"
+                disabled={isModelLoading || !currentApiKey}
               >
-                {!apiKey ? (
+                {!currentApiKey ? (
                   <option>Set API Key first...</option>
                 ) : availableModels.length > 0 ? (
                   availableModels.map(m => (
@@ -272,8 +346,8 @@ const App: React.FC = () => {
               </select>
               <button
                 onClick={loadModels}
-                disabled={!apiKey}
-                className={`p-1 hover:bg-gray-200 rounded-full transition-all ${isModelLoading ? 'animate-spin' : ''} ${!apiKey ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!currentApiKey}
+                className={`p-1 hover:bg-gray-200 rounded-full transition-all ${isModelLoading ? 'animate-spin' : ''} ${!currentApiKey ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
               </button>
@@ -313,12 +387,12 @@ const App: React.FC = () => {
               </div>
 
               <div className="p-6 flex-1 overflow-y-auto space-y-6 relative">
-                {!apiKey && (
+                {!currentApiKey && (
                   <div className="absolute inset-x-6 top-6 bottom-0 bg-white/60 backdrop-blur-[1px] z-40 rounded-xl flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-amber-200 animate-in fade-in zoom-in-95 duration-300">
                     <div className="bg-amber-100 p-4 rounded-full mb-4">
                       <Key className="w-8 h-8 text-amber-600" />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Configure your Gemini API Key to begin</h3>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Configure your {selectedVendor.toUpperCase()} API Key to begin</h3>
                     <p className="text-sm text-gray-600 max-w-sm mb-6">
                       To protect your privacy, we don't store your API key on our servers. Please enter it in the top settings to activate the laboratory.
                     </p>
@@ -329,7 +403,7 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                <div className={`space-y-6 transition-all duration-500 ${!apiKey ? 'filter blur-[2px] opacity-40 pointer-events-none' : ''}`}>
+                <div className={`space-y-6 transition-all duration-500 ${!currentApiKey ? 'filter blur-[2px] opacity-40 pointer-events-none' : ''}`}>
                   <div className="flex flex-col">
                     <TextArea
                       label="Post/Article to Answer"
@@ -337,7 +411,7 @@ const App: React.FC = () => {
                       value={context}
                       onChange={(e) => setContext(e.target.value)}
                       className="min-h-[250px] text-base font-medium resize-none"
-                      helperText="URLs will be analyzed using Google Search. Your text is auto-saved locally."
+                      helperText={`URLs will be analyzed using ${selectedVendor === Vendor.GOOGLE ? 'Google Search' : 'the model'}. Your text is auto-saved locally.`}
                     />
                   </div>
 
@@ -364,11 +438,11 @@ const App: React.FC = () => {
                 <Button
                   onClick={handleGenerate}
                   isLoading={isLoading}
-                  disabled={!apiKey}
-                  className={`w-full h-14 text-lg shadow-md active:scale-[0.99] transition-all ${!apiKey ? 'bg-gray-300 cursor-not-allowed text-gray-500' : generatedContent ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#0077B5] hover:bg-[#004182]'}`}
+                  disabled={!currentApiKey}
+                  className={`w-full h-14 text-lg shadow-md active:scale-[0.99] transition-all ${!currentApiKey ? 'bg-gray-300 cursor-not-allowed text-gray-500' : generatedContent ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#0077B5] hover:bg-[#004182]'}`}
                   icon={generatedContent ? <RefreshCw className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                 >
-                  {isLoading ? 'Architecting Content...' : !apiKey ? 'API Key Required' : generatedContent ? 'Update Artifact' : 'Generate Artifact'}
+                  {isLoading ? 'Architecting Content...' : !currentApiKey ? 'API Key Required' : generatedContent ? 'Update Artifact' : 'Generate Artifact'}
                 </Button>
               </div>
             </section>
@@ -473,10 +547,11 @@ const App: React.FC = () => {
 
       <footer className="bg-white border-t border-gray-200 px-6 py-2 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-widest flex-shrink-0">
         <div className="flex gap-4">
+          <span>Vendor: {selectedVendor.toUpperCase()}</span>
           <span>Engine: {selectedModel.split('-').pop()?.toUpperCase()}</span>
           <span>Status: Standby</span>
         </div>
-        <span>LinkedIn Architect v2.5 Incremental Wipe</span>
+        <span>LinkedIn Architect v3.0 Multi-Engine</span>
       </footer>
     </div>
   );

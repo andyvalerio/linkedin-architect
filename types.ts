@@ -1,3 +1,14 @@
+export enum Vendor {
+  GOOGLE = 'google',
+  OPENAI = 'openai'
+}
+
+export interface ModelInfo {
+  name: string;
+  displayName: string;
+  description: string;
+}
+
 export interface UploadedDocument {
   id: string;
   name: string;
