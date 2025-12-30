@@ -238,14 +238,15 @@ const App: React.FC = () => {
               <Trash2 className="w-3.5 h-3.5" /> Reset Lab
             </button>
 
-            <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-              <Key className="w-3.5 h-3.5 text-gray-400" />
+            <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border transition-all ${!apiKey ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-500 animate-pulse' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+              <Key className={`w-3.5 h-3.5 ${!apiKey ? 'text-amber-600' : 'text-gray-400'}`} />
               <input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="Gemini API Key..."
                 className="bg-transparent border-none focus:ring-0 text-gray-700 outline-none w-32"
+                id="api-key-input"
               />
             </div>
 
@@ -311,33 +312,51 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-6 flex-1 overflow-y-auto space-y-6">
-                <div className="flex flex-col">
-                  <TextArea
-                    label="Post/Article to Answer"
-                    placeholder="Paste the target post content or URL here. This is the source of truth for the response..."
-                    value={context}
-                    onChange={(e) => setContext(e.target.value)}
-                    className="min-h-[250px] text-base font-medium resize-none"
-                    helperText="URLs will be analyzed using Google Search. Your text is auto-saved locally."
-                  />
-                </div>
+              <div className="p-6 flex-1 overflow-y-auto space-y-6 relative">
+                {!apiKey && (
+                  <div className="absolute inset-x-6 top-6 bottom-0 bg-white/60 backdrop-blur-[1px] z-40 rounded-xl flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-amber-200 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="bg-amber-100 p-4 rounded-full mb-4">
+                      <Key className="w-8 h-8 text-amber-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Configure your Gemini API Key to begin</h3>
+                    <p className="text-sm text-gray-600 max-w-sm mb-6">
+                      To protect your privacy, we don't store your API key on our servers. Please enter it in the top settings to activate the laboratory.
+                    </p>
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-600 uppercase tracking-widest bg-amber-50 px-4 py-2 rounded-full border border-amber-100">
+                      <Sparkles className="w-3.5 h-3.5 animate-bounce" />
+                      Look for the blinking input above
+                    </div>
+                  </div>
+                )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <TextArea
-                    label="Main Points / Refinement Instructions"
-                    placeholder="Initial points OR update instructions for the existing draft..."
-                    value={braindump}
-                    onChange={(e) => setBraindump(e.target.value)}
-                    className="min-h-[150px]"
-                  />
-                  <TextArea
-                    label="Persona & Voice"
-                    placeholder="Describe your tone (e.g., 'Authoritative expert')"
-                    value={personality}
-                    onChange={(e) => setPersonality(e.target.value)}
-                    className="min-h-[150px]"
-                  />
+                <div className={`space-y-6 transition-all duration-500 ${!apiKey ? 'filter blur-[2px] opacity-40 pointer-events-none' : ''}`}>
+                  <div className="flex flex-col">
+                    <TextArea
+                      label="Post/Article to Answer"
+                      placeholder="Paste the target post content or URL here. This is the source of truth for the response..."
+                      value={context}
+                      onChange={(e) => setContext(e.target.value)}
+                      className="min-h-[250px] text-base font-medium resize-none"
+                      helperText="URLs will be analyzed using Google Search. Your text is auto-saved locally."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <TextArea
+                      label="Main Points / Refinement Instructions"
+                      placeholder="Initial points OR update instructions for the existing draft..."
+                      value={braindump}
+                      onChange={(e) => setBraindump(e.target.value)}
+                      className="min-h-[150px]"
+                    />
+                    <TextArea
+                      label="Persona & Voice"
+                      placeholder="Describe your tone (e.g., 'Authoritative expert')"
+                      value={personality}
+                      onChange={(e) => setPersonality(e.target.value)}
+                      className="min-h-[150px]"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -345,10 +364,11 @@ const App: React.FC = () => {
                 <Button
                   onClick={handleGenerate}
                   isLoading={isLoading}
-                  className={`w-full h-14 text-lg shadow-md active:scale-[0.99] transition-all ${generatedContent ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#0077B5] hover:bg-[#004182]'}`}
+                  disabled={!apiKey}
+                  className={`w-full h-14 text-lg shadow-md active:scale-[0.99] transition-all ${!apiKey ? 'bg-gray-300 cursor-not-allowed text-gray-500' : generatedContent ? 'bg-purple-600 hover:bg-purple-700' : 'bg-[#0077B5] hover:bg-[#004182]'}`}
                   icon={generatedContent ? <RefreshCw className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                 >
-                  {isLoading ? 'Architecting Content...' : generatedContent ? 'Update Artifact' : 'Generate Artifact'}
+                  {isLoading ? 'Architecting Content...' : !apiKey ? 'API Key Required' : generatedContent ? 'Update Artifact' : 'Generate Artifact'}
                 </Button>
               </div>
             </section>

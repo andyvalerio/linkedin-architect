@@ -234,4 +234,33 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
     expect(storedKey).toBe(testKey);
   });
 
+  /**
+   * [US-UI-07] API KEY ONBOARDING
+   * Requirement: As a user, I want a clear visual indication when the API key is missing 
+   * and have the core generation features disabled until I provide one, so I know 
+   * exactly how to start using the tool.
+   */
+  test('UI reflects missing API key state', async ({ page }) => {
+    // Clear local storage to ensure key is missing (set by beforeEach)
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+
+    const apiKeyInput = page.locator('input[placeholder*="Gemini API Key"]');
+    const generateBtn = page.locator('button:has-text("API Key Required")');
+    const onboardingMessage = page.locator('text=Configure your Gemini API Key to begin');
+
+    // Key input should be present
+    await expect(apiKeyInput).toBeVisible();
+    await expect(onboardingMessage).toBeVisible();
+
+    // Generate button should be disabled and show requirement text
+    await expect(generateBtn).toBeDisabled();
+
+    // Fill key and see it enabled
+    await apiKeyInput.fill('some-key');
+    const enabledGenerateBtn = page.locator('button:has-text("Generate Artifact")');
+    await expect(enabledGenerateBtn).toBeEnabled();
+    await expect(onboardingMessage).not.toBeVisible();
+  });
+
 });
