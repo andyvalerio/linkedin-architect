@@ -16,7 +16,10 @@ import {
   Trash2,
   FilePlus2,
   Key,
-  Server
+  Server,
+  Eye,
+  EyeOff,
+  ShieldCheck
 } from 'lucide-react';
 import { TextArea } from './components/TextArea';
 import { Button } from './components/Button';
@@ -100,6 +103,7 @@ const App: React.FC = () => {
 
   // Current API Key for the active vendor
   const currentApiKey = apiKeys[selectedVendor] || '';
+  const [showApiKey, setShowApiKey] = useState<boolean>(false);
 
   // Resizable Panels State
   const [leftPanelWidth, setLeftPanelWidth] = useState<number>(66.66); // Default 8/12
@@ -385,16 +389,33 @@ const App: React.FC = () => {
               </select>
             </div>
 
-            <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border transition-all ${!currentApiKey ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-500 animate-pulse' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-              <Key className={`w-3.5 h-3.5 ${!currentApiKey ? 'text-amber-600' : 'text-gray-400'}`} />
+            <div className={`flex items-center gap-2 text-xs font-semibold px-2 py-1.5 rounded-lg border transition-all ${!currentApiKey ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-500 animate-pulse' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-[#0077B5]/30'}`}>
+              <div
+                className="group relative flex items-center gap-1.5 cursor-help"
+                title="Your key stays in your browser. We never send it to our servers."
+              >
+                <ShieldCheck className={`w-3.5 h-3.5 ${!currentApiKey ? 'text-amber-600' : 'text-green-600'}`} />
+                <span className={`hidden lg:inline text-[9px] uppercase tracking-tighter ${!currentApiKey ? 'text-amber-700' : 'text-gray-400'}`}>Local Only</span>
+              </div>
+
               <input
                 id="api-key-input"
-                type="password"
+                type="text"
                 value={currentApiKey}
                 onChange={(e) => handleApiKeyChange(e.target.value)}
                 placeholder={`${selectedVendor.toUpperCase()} API Key...`}
-                className="bg-transparent border-none focus:ring-0 text-gray-700 outline-none w-32"
+                className="bg-transparent border-none focus:ring-0 text-gray-700 outline-none w-28 text-[11px] font-mono"
+                style={{ WebkitTextSecurity: showApiKey ? 'none' : 'disc' } as any}
+                autoComplete="off"
               />
+
+              <button
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="p-1 hover:bg-gray-200 rounded transition-colors text-gray-400 hover:text-gray-600"
+                title={showApiKey ? "Hide Key" : "Show Key"}
+              >
+                {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
             </div>
 
             <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">

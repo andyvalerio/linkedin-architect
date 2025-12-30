@@ -419,4 +419,34 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
     // await expect(onboardingMessage).not.toBeVisible(); // This might be hidden by a layer
   });
 
+  /**
+   * [US-SEC-02] PRIVACY REASSURANCE & BROWSER COMPATIBILITY
+   * Requirement: As a user, I want the API key input to clearly state its local-only nature 
+   * and avoid triggering "insecure password" browser warnings on HTTP sites, 
+   * so I feel safe entering my credentials.
+   */
+  test('API Key input uses masking and shows local-only indicator', async ({ page }) => {
+    const apiKeyInput = page.locator('input[id="api-key-input"]');
+    const localIndicator = page.locator('text=Local Only');
+    const shieldIcon = page.locator('.lucide-shield-check');
+    const toggleBtn = page.locator('button[title="Show Key"]');
+
+    await expect(apiKeyInput).toBeVisible();
+    await expect(localIndicator).toBeVisible();
+    await expect(shieldIcon).toBeVisible();
+    await expect(toggleBtn).toBeVisible();
+
+    // Verify type is 'text' (to avoid Chrome unsafe password warning)
+    await expect(apiKeyInput).toHaveAttribute('type', 'text');
+
+    // Verify masking style is applied by default
+    const textSecurity = await apiKeyInput.evaluate((el: HTMLElement) => (window.getComputedStyle(el) as any).webkitTextSecurity);
+    expect(textSecurity).toBe('disc');
+
+    // Toggle and check
+    await toggleBtn.click();
+    const textSecurityVisible = await apiKeyInput.evaluate((el: HTMLElement) => (window.getComputedStyle(el) as any).webkitTextSecurity);
+    expect(textSecurityVisible).toBe('none');
+  });
+
 });
