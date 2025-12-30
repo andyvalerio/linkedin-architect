@@ -1,5 +1,5 @@
 {
   "name": "LinkedIn Architect",
-  "description": "A professional AI writing assistant with deep persistence, document-based RAG, and automated Google Search grounding.",
+  "description": "A professional AI writing assistant with deep persistence, document-based RAG, and automated search grounding.",
   "requestFramePermissions": []
 }

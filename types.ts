@@ -1,5 +1,5 @@
 export enum Vendor {
-  GOOGLE = 'google',
+  GEMINI = 'gemini',
   OPENAI = 'openai'
 }
 

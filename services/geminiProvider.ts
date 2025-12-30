@@ -4,7 +4,7 @@ import { LLMProvider, GeneratedResponse } from "./llmProvider";
 import { getSystemInstruction, getUserPrompt } from "./promptUtils";
 import { ragService } from "./ragService";
 
-export class GoogleProvider implements LLMProvider {
+export class GeminiProvider implements LLMProvider {
     async fetchModels(apiKey: string): Promise<ModelInfo[]> {
         const ai = new GoogleGenAI({ apiKey });
         const models: ModelInfo[] = [];
@@ -24,7 +24,7 @@ export class GoogleProvider implements LLMProvider {
 
             return models;
         } catch (error) {
-            console.error("Error listing Google models:", error);
+            console.error("Error listing Gemini models:", error);
             throw error;
         }
     }
@@ -65,7 +65,7 @@ export class GoogleProvider implements LLMProvider {
         // Add RAG chunks if needed
         if (ragDocs.length > 0) {
             const queryEmbeddings = await this.generateEmbeddings(apiKey, [config.braindump || config.context]);
-            const relevantChunks = await ragService.searchSimilar(queryEmbeddings[0], Vendor.GOOGLE);
+            const relevantChunks = await ragService.searchSimilar(queryEmbeddings[0], Vendor.GEMINI);
 
             if (relevantChunks.length > 0) {
                 let ragContext = "\n\nRELEVANT KNOWLEDGE CHUNKS:\n";
@@ -122,7 +122,7 @@ export class GoogleProvider implements LLMProvider {
                 return values ? Array.from(values) : [];
             });
         } catch (error) {
-            console.error("Error generating Google embeddings:", error);
+            console.error("Error generating Gemini embeddings:", error);
             throw error;
         }
     }

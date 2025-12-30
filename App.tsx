@@ -28,9 +28,9 @@ import { UploadedDocument, PostType, GenerationConfig, Vendor, ModelInfo, Knowle
 import { getProvider, getAvailableVendors } from './services/llmFactory';
 
 const DEFAULT_PERSONALITY = 'Professional, empathetic, yet authoritative. Insightful and bold.';
-const DEFAULT_VENDOR = Vendor.GOOGLE;
+const DEFAULT_VENDOR = Vendor.GEMINI;
 const DEFAULT_MODELS: Record<Vendor, string> = {
-  [Vendor.GOOGLE]: 'gemini-2.5-flash',
+  [Vendor.GEMINI]: 'gemini-2.0-flash',
   [Vendor.OPENAI]: 'gpt-4o'
 };
 
@@ -82,8 +82,13 @@ const App: React.FC = () => {
 
       // Migration from old single key if exists
       const oldKey = localStorage.getItem('li_arch_api_key');
-      if (oldKey && !parsed[Vendor.GOOGLE]) {
-        parsed[Vendor.GOOGLE] = oldKey;
+      if (oldKey && !parsed[Vendor.GEMINI]) {
+        parsed[Vendor.GEMINI] = oldKey;
+      }
+      // Migration from 'google' to 'gemini' key
+      if (parsed['google'] && !parsed[Vendor.GEMINI]) {
+        parsed[Vendor.GEMINI] = parsed['google'];
+        delete parsed['google'];
       }
       return parsed;
     } catch {
@@ -525,7 +530,7 @@ const App: React.FC = () => {
                   value={context}
                   onChange={(e) => setContext(e.target.value)}
                   className="min-h-[250px] text-base font-medium resize-none"
-                  helperText={`URLs will be analyzed using ${selectedVendor === Vendor.GOOGLE ? 'Google Search' : 'the model'}. Your text is auto-saved locally.`}
+                  helperText={`URLs will be analyzed using ${selectedVendor === Vendor.GEMINI ? 'Google Search' : 'the model'}. Your text is auto-saved locally.`}
                 />
 
                 <TextArea

@@ -197,7 +197,7 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
     const modelSelect = page.locator('header select[id="model-select"]');
 
     await expect(vendorSelect).toBeVisible();
-    await expect(vendorSelect).toHaveValue('google'); // Default
+    await expect(vendorSelect).toHaveValue('gemini'); // Default
 
     // Switch to OpenAI
     await vendorSelect.selectOption('openai');
@@ -218,16 +218,16 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
     const apiKeyInput = page.locator('input[id="api-key-input"]');
 
     // Set Google Key
-    await vendorSelect.selectOption('google');
-    await apiKeyInput.fill('google-key-123');
+    await vendorSelect.selectOption('gemini');
+    await apiKeyInput.fill('gemini-key-123');
 
     // Switch to OpenAI and set key
     await vendorSelect.selectOption('openai');
     await apiKeyInput.fill('openai-key-456');
 
     // Switch back to Google and verify key
-    await vendorSelect.selectOption('google');
-    await expect(apiKeyInput).toHaveValue('google-key-123');
+    await vendorSelect.selectOption('gemini');
+    await expect(apiKeyInput).toHaveValue('gemini-key-123');
 
     // Switch back to OpenAI and verify key
     await vendorSelect.selectOption('openai');
@@ -244,7 +244,7 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
     const modelSelect = page.locator('header select[id="model-select"]');
 
     // Select Google and a non-default model (if possible, or just verify it stays)
-    await vendorSelect.selectOption('google');
+    await vendorSelect.selectOption('gemini');
     // We might need to wait for models to load
     await expect(modelSelect).toBeVisible();
     const googleOptions = await modelSelect.locator('option').allInnerTexts();
@@ -263,7 +263,7 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
     const selectedOpenAIModel = await modelSelect.inputValue();
 
     // Switch back to Google and verify model
-    await vendorSelect.selectOption('google');
+    await vendorSelect.selectOption('gemini');
     await expect(modelSelect).toHaveValue(selectedGoogleModel);
 
     // Switch back to OpenAI and verify model
@@ -403,7 +403,7 @@ test.describe('LinkedIn Architect - Requirements Validation', () => {
 
     const apiKeyInput = page.locator('input[id="api-key-input"]');
     const generateBtn = page.locator('button:has-text("API Key Required")');
-    const onboardingMessage = page.locator('h3:has-text("Configure your GOOGLE API Key to begin")');
+    const onboardingMessage = page.locator('h3:has-text("Configure your GEMINI API Key to begin")');
 
     // Key input should be present
     await expect(apiKeyInput).toBeVisible();

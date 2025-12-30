@@ -2,7 +2,7 @@
 
 > **Master the Art of LinkedIn Content with AI-Assisted Precision.**
 
-LinkedIn Architect is a content generation laboratory designed to help creators, executives, and architects craft high-impact LinkedIn posts and comments. By combining Multi-Vendor LLM support (Google & OpenAI) with an advanced Knowledge Base (RAG), it allows you to ground your content in real documents while maintaining your unique voice.
+LinkedIn Architect is a content generation laboratory designed to help creators, executives, and architects craft high-impact LinkedIn posts and comments. By combining Multi-Vendor LLM support (Gemini & OpenAI) with an advanced Knowledge Base (RAG), it allows you to ground your content in real documents while maintaining your unique voice.
 
 ### 🚀 [Live: andyvalerio.github.io/linkedin-architect](https://andyvalerio.github.io/linkedin-architect/)
 
@@ -42,7 +42,7 @@ LinkedIn Architect is a content generation laboratory designed to help creators,
 ### Prerequisites
 
 -   [Node.js](https://nodejs.org/) (Latest LTS recommended)
--   An API Key from [Google AI Studio](https://aistudio.google.com/) or [OpenAI Platform](https://platform.openai.com/)
+-   An API Key from [Gemini (AI Studio)](https://aistudio.google.com/) or [OpenAI Platform](https://platform.openai.com/)
 
 ### Installation
 
@@ -66,7 +66,7 @@ LinkedIn Architect is a content generation laboratory designed to help creators,
     Navigate to `http://localhost:5173` (or the port shown in your terminal).
 
 5.  **Configure API Key**:
-    Click the **Key icon** in the header to enter your Google or OpenAI API key.
+    Click the **Key icon** in the header to enter your Gemini or OpenAI API key.
 
 ---
 

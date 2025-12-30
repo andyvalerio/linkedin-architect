@@ -1,7 +1,7 @@
 import { GenerationConfig, UploadedDocument } from "../types";
 
 export const getSystemInstruction = (personality: string): string => {
-    return `You are a professional LinkedIn content writer and editor.
+  return `You are a professional LinkedIn content writer and editor.
   Your task is to produce clear, engaging, and credible LinkedIn content that maintains a professional tone while remaining readable and compelling.
 
   KNOWLEDGE CORPUS:
@@ -18,7 +18,7 @@ export const getSystemInstruction = (personality: string): string => {
   - Preserve the sections of the original draft that you're not explicitly instructed to change.
 
   URL HANDLING:
-  - If a URL is provided in the context, use the Google Search tool to browse the page and absorb the content before writing.
+  - If a URL is provided in the context, use the Search tool to browse the page and absorb the content before writing.
 
   OUTPUT FORMAT:
   - Use spacing and short paragraphs for readability.
@@ -26,7 +26,7 @@ export const getSystemInstruction = (personality: string): string => {
 };
 
 export const getUserPrompt = (config: GenerationConfig, documentContext: string = ""): string => {
-    return `
+  return `
   TASK: ${config.currentDraft ? "Refine and update the existing" : "Write a new"} LinkedIn ${config.postType}.
 
   ${config.currentDraft ? `CURRENT DRAFT TO REFINE:\n"""\n${config.currentDraft}\n"""\n` : ""}
@@ -42,10 +42,10 @@ export const getUserPrompt = (config: GenerationConfig, documentContext: string 
 };
 
 export const formatDocumentContext = (documents: UploadedDocument[]): string => {
-    const activeDocs = documents.filter(doc => doc.isActive);
-    if (activeDocs.length === 0) return "";
+  const activeDocs = documents.filter(doc => doc.isActive);
+  if (activeDocs.length === 0) return "";
 
-    return "\n\nKNOWLEDGE CORPUS DOCUMENTS:\n" + activeDocs.map(doc => {
-        return `--- DOCUMENT: ${doc.name} ---\n${doc.data}\n`;
-    }).join("\n");
+  return "\n\nKNOWLEDGE CORPUS DOCUMENTS:\n" + activeDocs.map(doc => {
+    return `--- DOCUMENT: ${doc.name} ---\n${doc.data}\n`;
+  }).join("\n");
 };
